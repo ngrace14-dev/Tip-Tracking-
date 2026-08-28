@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RREDCO Tip Tracker</title>
+    <title>RREDCO Tip Tracker (Cloud Sync)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -12,9 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Calibri:wght@400;700&display=swap" rel="stylesheet">
-    
-    <!-- INTERNAL DATA VAULT: Holds baked-in data when Hard Save is executed -->
-    <script id="internal-db" type="application/json"></script>
 
     <style>
         body {
@@ -27,106 +24,48 @@
             overflow: hidden;
         }
         
-        .grid-bg {
-            background-size: 20px 20px;
-            background-image: radial-gradient(circle, #374151 1.5px, transparent 1.5px);
-        }
+        ::-webkit-scrollbar { height: 12px; width: 12px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb { background: #b0b0b0; border-radius: 6px; border: 2px solid #f1f1f1; cursor: grab; }
+        ::-webkit-scrollbar-thumb:hover { background: #909090; }
 
-        ::-webkit-scrollbar {
-            height: 12px;
-            width: 12px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 6px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #b0b0b0;
-            border-radius: 6px;
-            border: 2px solid #f1f1f1;
-            cursor: grab;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #909090;
-        }
-
-        .excel-table {
-            border-collapse: collapse;
-            font-size: 14px;
-            background-color: white;
-            width: 100%;
-        }
-        .excel-table th, .excel-table td {
-            border: 1px solid #d1d5db;
-            padding: 4px 8px;
-            white-space: nowrap;
-        }
-        .excel-table th {
-            font-weight: 600;
-            background-color: #f8f9fa;
-        }
+        .excel-table { border-collapse: collapse; font-size: 14px; background-color: white; width: 100%; }
+        .excel-table th, .excel-table td { border: 1px solid #d1d5db; padding: 4px 8px; white-space: nowrap; }
+        .excel-table th { font-weight: 600; background-color: #f8f9fa; }
         .bg-input-yellow { background-color: #fef08a !important; }
         .bg-white { background-color: #FFFFFF !important; }
 
         input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-            -webkit-appearance: none; 
-            margin: 0; 
-        }
-        input[type=number], input[type=text] {
-            -moz-appearance: textfield;
-            width: 100%; height: 100%;
-            border: none; outline: none;
-            background: transparent;
-            font-family: inherit; font-size: inherit;
-        }
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number], input[type=text] { -moz-appearance: textfield; width: 100%; height: 100%; border: none; outline: none; background: transparent; font-family: inherit; font-size: inherit; }
         input[type=number] { text-align: right; }
 
-        .excel-tabs {
-            display: flex;
-            background-color: #e5e7eb;
-            border-top: 1px solid #d1d5db;
-            overflow-x: auto;
-            user-select: none;
-        }
-        .excel-tab {
-            padding: 8px 18px;
-            border-right: 1px solid #d1d5db;
-            border-top: 1px solid transparent;
-            background-color: #e5e7eb;
-            cursor: pointer; font-size: 13px; font-weight: 600;
-            color: #4b5563;
-            transition: all 0.15s ease;
-            white-space: nowrap;
-        }
-        .excel-tab.active {
-            background-color: #fff;
-            color: #15803d;
-            border-top: 3px solid #15803d;
-            font-weight: 700;
-            border-bottom: 1px solid white;
-            margin-bottom: -1px;
-        }
+        .excel-tabs { display: flex; background-color: #e5e7eb; border-top: 1px solid #d1d5db; overflow-x: auto; user-select: none; }
+        .excel-tab { padding: 8px 18px; border-right: 1px solid #d1d5db; border-top: 1px solid transparent; background-color: #e5e7eb; cursor: pointer; font-size: 13px; font-weight: 600; color: #4b5563; transition: all 0.15s ease; white-space: nowrap; }
+        .excel-tab.active { background-color: #fff; color: #15803d; border-top: 3px solid #15803d; font-weight: 700; border-bottom: 1px solid white; margin-bottom: -1px; }
         .excel-tab:hover:not(.active) { background-color: #d1d5db; }
-        .workspace {
-            flex: 1; overflow: auto;
-            padding: 24px; background-color: white;
-            cursor: grab;
-        }
-        .workspace:active {
-            cursor: grabbing;
-        }
+        .workspace { flex: 1; overflow: auto; padding: 24px; background-color: white; cursor: grab; }
+        .workspace:active { cursor: grabbing; }
         [v-cloak] { display: none; }
     </style>
 </head>
 <body>
     <div id="app" class="h-full flex flex-col" v-cloak>
         
+        <div v-if="!isDbConnected" class="fixed inset-0 bg-[#217346] flex flex-col items-center justify-center z-[500] text-white">
+            <i data-lucide="cloud-cog" class="w-16 h-16 animate-bounce mb-4"></i>
+            <h2 class="text-2xl font-bold tracking-widest uppercase mb-1">RREDCO Tip Tracker</h2>
+            <p class="text-green-200 font-medium flex items-center gap-2">
+                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Authenticating & Connecting to Cloud Database...
+            </p>
+        </div>
+
         <header class="bg-[#217346] text-white px-5 py-3 flex flex-wrap xl:flex-nowrap justify-between items-center shrink-0 shadow-md z-20 gap-y-3">
             <div class="flex flex-col justify-center w-full md:w-auto xl:w-1/4 gap-1 order-1">
                 <div class="flex items-center gap-2">
                     <i data-lucide="table-2" class="w-6 h-6"></i>
                     <span class="font-bold tracking-wide text-lg">RREDCO Tip Tracker</span>
+                    <span class="bg-green-800 text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-widest flex items-center gap-1 shadow-inner border border-green-700/50"><i data-lucide="cloud-lightning" class="w-3 h-3 text-yellow-400"></i> Cloud Sync</span>
                 </div>
                 <div v-if="isManagerUnlocked" class="flex items-center gap-1.5 text-xs">
                     <span class="text-green-100 font-medium">Period:</span>
@@ -150,14 +89,12 @@
             </div>
 
             <div class="flex items-center justify-end gap-2 w-full md:w-auto xl:w-1/4 order-2 xl:order-3 flex-wrap">
-                
                 <div v-if="isManagerUnlocked" class="flex items-center gap-2 mr-1 bg-white/10 px-3 py-1.5 rounded shadow-inner border border-white/20 transition-colors" :class="timeRemaining <= 90 ? 'bg-red-500/30 border-red-400' : ''">
                     <div class="flex flex-col relative group">
                         <div class="flex items-center gap-2 cursor-pointer py-1">
                             <i data-lucide="user" class="w-4 h-4 text-white"></i> 
                             <span class="text-sm font-bold text-white">{{ loggedInUser }}</span>
                         </div>
-                        
                         <div v-if="isDevUser" class="absolute top-full right-0 mt-1 w-48 bg-white text-gray-800 rounded-lg shadow-xl border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
                             <div class="px-3 py-1.5 bg-purple-100 border-b border-purple-200 font-bold text-[10px] uppercase tracking-wider text-purple-800 flex items-center gap-1.5">
                                 <i data-lucide="shield-alert" class="w-3 h-3"></i> Quick Login Menu
@@ -205,10 +142,6 @@
 
                     <button @click="showImportModal = true; refreshIcons()" class="text-xs sm:text-sm bg-blue-500 hover:bg-blue-600 text-white font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow transition-colors" title="Raw Data Uploads / Paste Engine">
                         <i data-lucide="upload" class="w-4 h-4"></i> <span class="hidden xl:inline">Import Data</span>
-                    </button>
-                    
-                    <button @click="saveAppAsHTML" class="text-xs sm:text-sm bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow transition-colors" title="Bake current data directly into standalone HTML file">
-                        <i data-lucide="save" class="w-4 h-4"></i> <span class="hidden xl:inline">Hard Save App</span>
                     </button>
                     
                     <button @click="clearData()" class="text-xs sm:text-sm bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors" title="Reset Pay Period Data">
@@ -343,6 +276,7 @@
                     </div>
                 </div>
 
+                <!-- YTD Summary Matrix -->
                 <div class="mb-8 bg-white rounded-xl border border-gray-300 shadow-md p-4">
                     <div class="font-bold text-lg text-gray-900 mb-2 flex items-center justify-between">
                         <span class="flex items-center gap-2"><i data-lucide="trophy" class="w-5 h-5 text-amber-500"></i> {{ selectedArchiveYear }} Annual YTD Summary Matrix</span>
@@ -865,9 +799,7 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
-                        
-                        <div 
-                            class="p-6 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer relative"
+                        <div class="p-6 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer relative"
                             :class="isDraggingExcel ? 'bg-blue-100 border-blue-500 scale-[1.02]' : 'bg-blue-50/50 hover:bg-blue-50 border-blue-300'"
                             @dragover.prevent="isDraggingExcel = true"
                             @dragleave.prevent="isDraggingExcel = false"
@@ -879,7 +811,6 @@
                                     <i data-lucide="download" class="w-6 h-6"></i> Drop File Here
                                 </span>
                             </div>
-
                             <div class="bg-white p-3 rounded-full shadow-sm mb-1 border border-blue-100">
                                 <i data-lucide="file-spreadsheet" class="w-8 h-8 text-blue-600"></i>
                             </div>
@@ -888,8 +819,7 @@
                             <input type="file" ref="fileUpload" class="hidden" accept=".xlsx, .xls, .csv" @change="importExcel">
                         </div>
 
-                        <div 
-                            class="p-6 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer relative"
+                        <div class="p-6 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer relative"
                             :class="isDraggingOCR ? 'bg-purple-100 border-purple-500 scale-[1.02]' : 'bg-purple-50/40 hover:bg-purple-50 border-purple-300'"
                             @dragover.prevent="isDraggingOCR = true"
                             @dragleave.prevent="isDraggingOCR = false"
@@ -913,7 +843,6 @@
                             <p class="text-[11px] text-purple-600/80 font-medium text-center px-4">Upload PDF or Image to extract hours & tips.</p>
                             <input type="file" ref="ocrUpload" class="hidden" accept="image/*, application/pdf" @change="importOCR">
                         </div>
-
                     </div>
 
                     <div class="flex flex-col gap-2 flex-1 min-h-[200px]">
@@ -923,110 +852,6 @@
                             <i data-lucide="zap" class="w-4 h-4 text-yellow-300"></i> Process Data & Inject to Tab
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="showExtensionModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm" @click.self="showExtensionModal = false; cancelEditExtension();">
-            <div class="bg-white rounded-2xl shadow-2xl w-[850px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
-                <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
-                    <h2 class="font-bold text-xl text-gray-800 flex items-center gap-2"><i data-lucide="blocks" class="w-6 h-6 text-indigo-600"></i> App Hub & Virtual Directory</h2>
-                    <button @click="showExtensionModal = false; cancelEditExtension();" class="text-gray-500 hover:text-red-600 transition-colors p-1.5 bg-gray-200 hover:bg-red-100 rounded-md" title="Close">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
-                </div>
-                
-                <div class="p-6 flex flex-col gap-5 overflow-hidden flex-1 bg-white">
-                    
-                    <template v-if="!editingExtension">
-                        <!-- Install Box -->
-                        <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 shadow-sm shrink-0 transition-all relative" @dragover.prevent="isDraggingFile = true" @dragleave.prevent="isDraggingFile = false" @drop.prevent="handleFileDrop" :class="isDraggingFile ? 'bg-indigo-100 border-indigo-500 ring-4 ring-indigo-500/20' : ''">
-                            
-                            <div v-if="isDraggingFile" class="absolute inset-0 bg-indigo-500/10 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-10 pointer-events-none">
-                                <span class="font-bold text-indigo-700 text-lg flex items-center gap-2 bg-white px-5 py-2.5 rounded-full shadow-md">
-                                    <i data-lucide="download" class="w-6 h-6"></i> Drop .html File
-                                </span>
-                            </div>
-
-                            <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800 mb-3 flex items-center gap-1.5">
-                                <i data-lucide="plus-circle" class="w-4 h-4"></i> Install New Tool
-                            </h3>
-                            <div class="flex gap-3 items-start">
-                                <div class="w-1/3">
-                                    <input type="text" v-model="newExtension.name" class="border border-indigo-300 p-2.5 w-full bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium" placeholder="App Name (e.g. Timesheet)">
-                                </div>
-                                <div class="flex-1 flex gap-2">
-                                    <textarea v-model="newExtension.html" class="border border-indigo-300 p-2.5 w-full bg-white rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-[11px] font-mono h-11 resize-none placeholder-indigo-400" placeholder="Paste HTML/JS code block here, or Drag & Drop a .html file above"></textarea>
-                                    <button @click="addExtension" class="bg-indigo-600 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-700 font-bold shadow-sm transition-colors text-sm shrink-0 flex items-center gap-1">Install</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Directory List -->
-                        <div class="border rounded-xl shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-                            <div class="bg-gray-100 py-3 px-5 font-bold text-gray-700 text-sm border-b sticky top-0 z-10 flex justify-between items-center">
-                                Installed Applications
-                                <span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs">{{ extensions.length }} Tools</span>
-                            </div>
-                            <div class="overflow-y-auto flex-1 p-3 space-y-2.5 bg-gray-50/50">
-                                <div v-if="extensions.length === 0" class="text-center py-8 text-gray-500 italic text-sm">No external tools installed.</div>
-                                
-                                <div v-for="ext in extensions" :key="ext.id" class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl border border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md transition-all group gap-4">
-                                    <div class="flex items-center gap-4">
-                                        <div class="bg-indigo-100 p-3 rounded-xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors shrink-0">
-                                            <i data-lucide="layout-template" class="w-6 h-6"></i>
-                                        </div>
-                                        <div>
-                                            <h4 class="font-bold text-gray-900 text-base">{{ ext.name }}</h4>
-                                            <p class="text-[10px] text-gray-400 font-mono mt-0.5">ID: {{ ext.id }}</p>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-2 w-full sm:w-auto">
-                                        <button @click="launchExtension(ext)" class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center justify-center gap-1.5">
-                                            <i data-lucide="play" class="w-4 h-4"></i> Launch
-                                        </button>
-                                        <button @click="editExtension(ext)" class="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-600 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center justify-center gap-1.5" title="Inject Code Updates">
-                                            <i data-lucide="code" class="w-4 h-4"></i> Edit
-                                        </button>
-                                        <button @click="removeExtension(ext.id)" class="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors shrink-0 border border-transparent hover:border-red-100" title="Uninstall Tool">
-                                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-
-                    <template v-else>
-                        <!-- Code Editor View -->
-                        <div class="flex flex-col h-full gap-4">
-                            <div class="flex items-center justify-between bg-amber-50 p-4 rounded-xl border border-amber-200 text-amber-900 shadow-sm shrink-0">
-                                <div class="flex items-center gap-3">
-                                    <div class="bg-amber-100 p-2 rounded-lg">
-                                        <i data-lucide="code-2" class="w-6 h-6 text-amber-600"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold text-base">Injecting Code Updates</h3>
-                                        <p class="text-xs opacity-80 mt-0.5">Modify the raw HTML/JS for this tool. Changes apply immediately upon saving.</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <label class="text-xs font-bold text-amber-700 uppercase tracking-wide">App Name:</label>
-                                    <input type="text" v-model="editingExtension.name" class="border border-amber-300 p-2 bg-white rounded-lg font-bold text-sm w-48 text-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-inner" title="Tool Name">
-                                </div>
-                            </div>
-                            
-                            <textarea v-model="editingExtension.html" class="flex-1 w-full border border-gray-800 rounded-xl p-5 font-mono text-[13px] leading-relaxed bg-[#1e1e1e] text-[#d4d4d4] focus:ring-2 focus:ring-indigo-500 outline-none resize-none shadow-inner" placeholder="Paste updated HTML code block here..."></textarea>
-                            
-                            <div class="flex justify-end gap-3 shrink-0">
-                                <button @click="cancelEditExtension" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl transition-colors shadow-sm">Cancel</button>
-                                <button @click="updateExtension" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-sm flex items-center gap-2">
-                                    <i data-lucide="save" class="w-4 h-4"></i> Save Code Updates
-                                </button>
-                            </div>
-                        </div>
-                    </template>
-                    
                 </div>
             </div>
         </div>
@@ -1257,9 +1082,19 @@
 
     </div>
 
-    <script>
-        const pristineAppHTML = document.getElementById('app').innerHTML;
-        const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // FIREBASE INITIALIZATION
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sundial-default-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const fbApp = initializeApp(firebaseConfig);
+        const db = getFirestore(fbApp);
+        const auth = getAuth(fbApp);
+
+        const { createApp, ref, computed, watch, onMounted, nextTick } = window.Vue;
 
         const createEmptyDailyData = (daysCount) => {
             return Array.from({ length: daysCount }, () => ({ pool: null, hours: {}, driverTips: {} }));
@@ -1280,6 +1115,10 @@
 
         const app = createApp({
             setup() {
+                const isDbConnected = ref(false); // Controls loading screen
+                let unsubscribeSite = null;
+                let remoteStateHash = '';
+
                 const activeSite = ref('Red Bluff');
                 const numDays = ref(31); 
                 const employees = ref([]);
@@ -1346,12 +1185,6 @@
                     const [year, month] = currentPayPeriod.value.split('-');
                     const date = new Date(year, month - 1);
                     return date.toLocaleString('default', { month: 'long', year: 'numeric' });
-                });
-                const formattedPayPeriodFile = computed(() => {
-                    if (!currentPayPeriod.value) return '';
-                    const [year, month] = currentPayPeriod.value.split('-');
-                    const date = new Date(year, month - 1);
-                    return date.toLocaleString('default', { month: 'short', year: 'numeric' }).replace(/\s+/g, '');
                 });
 
                 const ROLE_TIERS = {
@@ -1424,10 +1257,6 @@
                 const historyIndex = ref(-1);
                 let isUndoing = false;
                 let isSwitchingSites = false;
-
-                const getStorageKey = () => `sundial-tracker-v4-${activeSite.value.replace(/\s+/g, '').toLowerCase()}`;
-                const getSystemUsersKey = () => 'sundial-system-users-registry';
-                const getExtensionsKey = () => 'sundial-extensions-registry';
 
                 const availableArchiveYears = computed(() => {
                     const yearsSet = new Set(Object.keys(yearlyArchives.value));
@@ -1544,8 +1373,9 @@
                     if (activeSite.value === site) return;
                     activeSite.value = site;
                     activeTab.value = 'master';
-                    loadState();
+                    localStorage.setItem('sundial-last-site', activeSite.value);
                     logAction("Switched Site", `Switched location view to ${site}`);
+                    loadSiteData();
                 };
 
                 const archiveCurrentMonth = () => {
@@ -1589,98 +1419,6 @@
                     });
                 };
 
-                const generateCustomDateReport = () => {
-                    if (!payrollStartDate.value || !payrollEndDate.value) {
-                        return showAlert("Please select both a start date and an end date.");
-                    }
-
-                    try {
-                        const dStart = new Date(payrollStartDate.value + 'T00:00:00');
-                        const dEnd = new Date(payrollEndDate.value + 'T23:59:59');
-                        
-                        const wb = XLSX.utils.book_new();
-                        const wsData = [
-                            [`RR Sundial ${activeSite.value} LLC - Payroll / Custom Date Report`], 
-                            ['Period:', dStart.toLocaleDateString(), 'to', dEnd.toLocaleDateString()], 
-                            []
-                        ];
-                        wsData.push(['Last Name', 'First Name', 'Total Hours', 'Total Tips ($)']);
-
-                        const totals = {};
-                        
-                        const processMonthData = (year, mIdx, mData) => {
-                            if (!mData || !mData.dailyData) return;
-                            for (let d = 0; d < 31; d++) {
-                                // Enforce strict valid days (e.g. ignore 30th/31st of Feb if it loops over to March)
-                                const currentDay = new Date(year, mIdx - 1, d + 1, 12, 0, 0);
-                                if (currentDay.getMonth() !== mIdx - 1) continue; 
-
-                                if (currentDay >= dStart && currentDay <= dEnd) {
-                                    const dayObj = mData.dailyData[d];
-                                    const calcObj = mData.calculatedTips ? mData.calculatedTips[d] : null;
-                                    
-                                    if (dayObj && dayObj.hours) {
-                                        Object.keys(dayObj.hours).forEach(empId => {
-                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
-                                            totals[empId].hours += parseFloat(dayObj.hours[empId]) || 0;
-                                        });
-                                    }
-                                    if (calcObj && calcObj.tips) {
-                                        Object.keys(calcObj.tips).forEach(empId => {
-                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
-                                            totals[empId].tips += parseFloat(calcObj.tips[empId]) || 0;
-                                        });
-                                    }
-                                    if (dayObj && dayObj.driverTips) {
-                                        Object.keys(dayObj.driverTips).forEach(empId => {
-                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
-                                            totals[empId].tips += parseFloat(dayObj.driverTips[empId]) || 0;
-                                        });
-                                    }
-                                }
-                            }
-                        };
-
-                        if (yearlyArchives.value) {
-                            for (const year in yearlyArchives.value) {
-                                for (const mIdx in yearlyArchives.value[year]) {
-                                    processMonthData(parseInt(year), parseInt(mIdx), yearlyArchives.value[year][mIdx]);
-                                }
-                            }
-                        }
-
-                        if (currentPayPeriod.value) {
-                            const [currYr, currM] = currentPayPeriod.value.split('-');
-                            processMonthData(parseInt(currYr), parseInt(currM), {
-                                dailyData: dailyData.value,
-                                calculatedTips: calculatedTips.value
-                            });
-                        }
-
-                        let hasData = false;
-                        employees.value.forEach(emp => {
-                            const t = totals[emp.id];
-                            if (t && (t.hours > 0 || t.tips > 0)) {
-                                wsData.push([emp.lastName, formatFirstName(emp), Math.round(t.hours * 100) / 100, Math.round(t.tips * 100) / 100]);
-                                hasData = true;
-                            }
-                        });
-
-                        if (!hasData) {
-                            return showAlert('No recorded hours or tips found in the ledger for the selected dates.');
-                        }
-
-                        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Payroll Report');
-                        XLSX.writeFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_DateRange_Report.xlsx`);
-                        
-                        logAction('Exported Custom Report', `Exported date range report from ${payrollStartDate.value} to ${payrollEndDate.value}`);
-                        showPayrollModal.value = false;
-                    } catch(err) {
-                        console.error(err);
-                        showAlert('Error generating report: ' + err.message);
-                    }
-                };
-
                 const closeArchivedMonthDetail = () => {
                     selectedArchivedMonthDetail.value = null;
                 };
@@ -1704,6 +1442,14 @@
                     saveState();
                 };
 
+                const clearAuditLog = () => {
+                    showConfirm("Are you sure you want to delete the entire audit log? This cannot be undone.", () => {
+                        auditLogs.value = [];
+                        logAction("Cleared Audit Log", "User manually wiped the audit history.");
+                        saveState();
+                    });
+                };
+
                 const exportAuditLog = () => {
                     try {
                         const wb = XLSX.utils.book_new();
@@ -1714,15 +1460,10 @@
                         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(logData), 'Audit Log');
                         XLSX.writeFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_AuditLog.xlsx`);
                         logAction("Exported Audit Log", "User exported system audit log.");
-                    } catch (error) { showAlert('Error generating Excel file. Please try again.'); }
-                };
-
-                const clearAuditLog = () => {
-                    showConfirm("Are you sure you want to delete the entire audit log? This cannot be undone.", () => {
-                        auditLogs.value = [];
-                        logAction("Cleared Audit Log", "User manually wiped the audit history.");
-                        saveState();
-                    });
+                    } catch (error) { 
+                        console.error(error);
+                        showAlert('Error generating Excel file. Please try again.'); 
+                    }
                 };
 
                 const editSystemUser = (pin) => {
@@ -1817,12 +1558,14 @@
                     });
                 };
 
-                watch(systemUsers, () => {
-                    localStorage.setItem(getSystemUsersKey(), JSON.stringify(systemUsers.value));
+                watch(systemUsers, async () => {
+                    if (!isDbConnected.value || !auth.currentUser) return;
+                    try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { systemUsers: systemUsers.value, extensions: extensions.value }, { merge: true }); } catch (e) { console.error(e); }
                 }, { deep: true });
 
-                watch(extensions, () => {
-                    localStorage.setItem(getExtensionsKey(), JSON.stringify(extensions.value));
+                watch(extensions, async () => {
+                    if (!isDbConnected.value || !auth.currentUser) return;
+                    try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { systemUsers: systemUsers.value, extensions: extensions.value }, { merge: true }); } catch (e) { console.error(e); }
                 }, { deep: true });
 
                 const launchExtension = (ext) => {
@@ -2018,11 +1761,10 @@
                         let origFn = String(fn||'').trim();
                         let cleanFn = origFn.toLowerCase();
                         let extractedTemp = '';
-                        // Support capturing both (E12-T1) and (4668) from the Excel name format
-                        const tempMatch = origFn.match(/\((?:E1[12]-T)?(.*?)\)/i);
+                        const tempMatch = origFn.match(/\(T-(.*?)\)/i);
                         if (tempMatch) {
                             extractedTemp = tempMatch[1].trim();
-                            origFn = origFn.replace(/\s*\((?:E1[12]-T)?.*?\)/i, '').trim();
+                            origFn = origFn.replace(/\s*\(T-.*?\)/i, '').trim();
                             cleanFn = origFn.toLowerCase();
                         }
 
@@ -2417,27 +2159,11 @@
                     if (!txt) return showAlert("Please paste some data or a JSON backup string into the box first.");
                     
                     try {
-                        const parsed = JSON.parse(txt);
-                        if (parsed.instanceId || parsed.sites) {
-                            if (parsed.sites['Red Bluff']) localStorage.setItem('sundial-tracker-v4-redbluff', JSON.stringify(parsed.sites['Red Bluff']));
-                            if (parsed.sites['Redding']) localStorage.setItem('sundial-tracker-v4-redding', JSON.stringify(parsed.sites['Redding']));
-                            if (parsed.systemUsers) localStorage.setItem(getSystemUsersKey(), JSON.stringify(parsed.systemUsers));
-                            if (parsed.extensions) localStorage.setItem(getExtensionsKey(), JSON.stringify(parsed.extensions)); 
-                            localStorage.setItem('sundial-last-site', parsed.activeSite || 'Red Bluff');
-                            
-                            loadState();
-                            showImportModal.value = false;
-                            pastedRawText.value = '';
-                            return showAlert("Full Application Backup Successfully Restored!");
-                        }
-                    } catch(e) { } 
-                    
-                    try {
                         const wb = XLSX.read(txt, {type: 'string'});
                         processWorkbook(wb, true);
                     } catch(e) {
                         console.error(e);
-                        showAlert("Error parsing pasted text. Ensure you are pasting valid copied cells directly from Excel, or a valid JSON backup string.");
+                        showAlert("Error parsing pasted text. Ensure you are pasting valid copied cells directly from Excel.");
                     }
                 };
 
@@ -2783,7 +2509,7 @@
                 const exportToExcel = () => {
                     try {
                         const wb = generateExcelWorkbook();
-                        const periodStr = formattedPayPeriodFile.value ? `_${formattedPayPeriodFile.value}` : '';
+                        const periodStr = formattedPayPeriod.value ? `_${formattedPayPeriod.value.replace(/\s+/g, '')}` : '';
                         const fileName = `Sundial_${activeSite.value.replace(/\s+/g, '_')}_Tips${periodStr}_${Date.now()}.xlsx`;
                         XLSX.writeFile(wb, fileName);
                         logAction("Exported Excel", `Exported active period data to ${fileName}`);
@@ -2793,283 +2519,103 @@
                     }
                 };
 
-                const saveAppAsHTML = () => {
-                    saveState(); 
-                    
-                    let originalBaked = { sites: {} };
-                    const dbEl = document.getElementById('internal-db');
-                    if (dbEl && dbEl.textContent.trim()) {
-                        try { originalBaked = JSON.parse(dbEl.textContent); } catch (e) {}
+                const generateCustomDateReport = () => {
+                    if (!payrollStartDate.value || !payrollEndDate.value) {
+                        return showAlert("Please select both a start date and an end date.");
                     }
 
-                    const localRB = localStorage.getItem('sundial-tracker-v4-redbluff');
-                    const localRD = localStorage.getItem('sundial-tracker-v4-redding');
-
-                    const redBluffData = localRB ? JSON.parse(localRB) : (originalBaked.sites && originalBaked.sites['Red Bluff'] ? originalBaked.sites['Red Bluff'] : {});
-                    const reddingData = localRD ? JSON.parse(localRD) : (originalBaked.sites && originalBaked.sites['Redding'] ? originalBaked.sites['Redding'] : {});
-
-                    const bakedData = {
-                        instanceId: 'snapshot_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                        timestamp: Date.now(),
-                        activeSite: activeSite.value,
-                        sites: { 'Red Bluff': redBluffData, 'Redding': reddingData },
-                        systemUsers: systemUsers.value,
-                        extensions: extensions.value
-                    };
-
-                    const clone = document.documentElement.cloneNode(true);
-                    const appDiv = clone.querySelector('#app');
-                    if (appDiv) appDiv.innerHTML = pristineAppHTML;
-
-                    const dbScript = clone.querySelector('#internal-db');
-                    if (dbScript) {
-                        dbScript.textContent = JSON.stringify(bakedData).replace(/<\/script>/g, '<\\/script>');
-                    }
-
-                    const finalHTML = '<!DOCTYPE html>\n' + clone.outerHTML;
-                    const blob = new Blob([finalHTML], { type: 'text/html' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    const a = document.createElement('a');
-                    a.href = url;
-                    const dateStr = new Date().toISOString().split('T')[0];
-                    const periodStr = formattedPayPeriodFile.value ? `_${formattedPayPeriodFile.value}` : '';
-                    a.download = `TipTracker_${activeSite.value.replace(/\s+/g, '')}${periodStr}_Backup_${dateStr}.html`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    showAlert("App successfully Hard Saved! You can now email this new .html file to secure your data.");
-                };
-
-                const checkInternalDB = () => {
-                    const dbEl = document.getElementById('internal-db');
-                    if(dbEl && dbEl.textContent.trim()) {
-                        try {
-                            const baked = JSON.parse(dbEl.textContent);
-                            const lastInst = localStorage.getItem('sundial-instance-id');
-                            
-                            if (baked.instanceId && baked.instanceId !== lastInst) {
-                                if(baked.sites['Red Bluff']) localStorage.setItem('sundial-tracker-v4-redbluff', JSON.stringify(baked.sites['Red Bluff']));
-                                if(baked.sites['Redding']) localStorage.setItem('sundial-tracker-v4-redding', JSON.stringify(baked.sites['Redding']));
-                                if(baked.systemUsers) localStorage.setItem(getSystemUsersKey(), JSON.stringify(baked.systemUsers));
-                                if(baked.extensions) localStorage.setItem(getExtensionsKey(), JSON.stringify(baked.extensions)); 
-                                
-                                localStorage.setItem('sundial-last-site', baked.activeSite || 'Red Bluff');
-                                localStorage.setItem('sundial-instance-id', baked.instanceId);
-                            } else {
-                                if (!localStorage.getItem('sundial-tracker-v4-redbluff') && baked.sites && baked.sites['Red Bluff']) {
-                                    localStorage.setItem('sundial-tracker-v4-redbluff', JSON.stringify(baked.sites['Red Bluff']));
-                                }
-                                if (!localStorage.getItem('sundial-tracker-v4-redding') && baked.sites && baked.sites['Redding']) {
-                                    localStorage.setItem('sundial-tracker-v4-redding', JSON.stringify(baked.sites['Redding']));
-                                }
-                            }
-                        } catch(e) { console.error("Error reading internal DB", e); }
-                    }
-                };
-
-                const saveState = () => {
-                    if (isUndoing || isSwitchingSites) return;
-                    localStorage.setItem(getStorageKey(), JSON.stringify({
-                        employees: employees.value, dailyData: dailyData.value, 
-                        numDays: numDays.value, auditLogs: auditLogs.value,
-                        currentPayPeriod: currentPayPeriod.value,
-                        yearlyArchives: yearlyArchives.value
-                    }));
-                    localStorage.setItem('sundial-last-site', activeSite.value);
-                };
-
-                const pushHistory = () => {
-                    if (isUndoing || isSwitchingSites) return;
-                    const snap = JSON.stringify({ e: employees.value, d: dailyData.value, n: numDays.value, p: currentPayPeriod.value });
-                    if (historyIndex.value < history.value.length - 1) history.value = history.value.slice(0, historyIndex.value + 1);
-                    if (history.value.length > 0 && history.value[historyIndex.value] === snap) return;
-                    history.value.push(snap);
-                    if (history.value.length > 30) history.value.shift();
-                    historyIndex.value = history.value.length - 1;
-                    saveState();
-                };
-
-                watch([employees, dailyData, numDays, currentPayPeriod], () => pushHistory(), { deep: true });
-
-                const undo = () => {
-                    if (historyIndex.value > 0) {
-                        isUndoing = true; historyIndex.value--;
-                        const snap = JSON.parse(history.value[historyIndex.value]);
-                        employees.value = snap.e; 
+                    try {
+                        const dStart = new Date(payrollStartDate.value + 'T00:00:00');
+                        const dEnd = new Date(payrollEndDate.value + 'T23:59:59');
                         
-                        let loadedData = snap.d;
-                        if (loadedData.length < 31) {
-                            const padding = createEmptyDailyData(31 - loadedData.length);
-                            loadedData = [...loadedData, ...padding];
-                        }
-                        dailyData.value = ensureThirtyOneDays(loadedData);
+                        const wb = XLSX.utils.book_new();
+                        const wsData = [
+                            [`RR Sundial ${activeSite.value} LLC - Payroll / Custom Date Report`], 
+                            ['Period:', dStart.toLocaleDateString(), 'to', dEnd.toLocaleDateString()], 
+                            []
+                        ];
+                        wsData.push(['Last Name', 'First Name', 'Total Hours', 'Total Tips ($)']);
+
+                        const totals = {};
                         
-                        numDays.value = 31;
-                        if (snap.p) currentPayPeriod.value = snap.p;
-                        saveState();
-                        setTimeout(() => isUndoing = false, 50);
-                    }
-                };
+                        const processMonthData = (year, mIdx, mData) => {
+                            if (!mData || !mData.dailyData) return;
+                            for (let d = 0; d < 31; d++) {
+                                // Enforce strict valid days (e.g. ignore 30th/31st of Feb if it loops over to March)
+                                const currentDay = new Date(year, mIdx - 1, d + 1, 12, 0, 0);
+                                if (currentDay.getMonth() !== mIdx - 1) continue; 
 
-                const loadState = () => {
-                    isSwitchingSites = true;
-                    checkInternalDB(); 
-
-                    const defaultRosters = {
-                        'Red Bluff': [
-                            { id: 'emp_rb_1', lastName: 'Arellano', firstName: 'Franklin', isDriver: false, isManager: false, tempId: '4668' },
-                            { id: 'emp_rb_2', lastName: 'Barr', firstName: 'Marni', isDriver: false, isManager: false, tempId: '8746' },
-                            { id: 'emp_rb_3', lastName: 'Burritt-Smith', firstName: 'Anthony', isDriver: false, isManager: false, tempId: '305' },
-                            { id: 'emp_rb_4', lastName: 'Cooper', firstName: 'Jacob', isDriver: false, isManager: false, tempId: '7497' },
-                            { id: 'emp_rb_5', lastName: 'Dalton', firstName: 'Holly', isDriver: false, isManager: false, tempId: '3657' },
-                            { id: 'emp_rb_6', lastName: 'Davis', firstName: 'Shaun', isDriver: false, isManager: false, tempId: '8201' },
-                            { id: 'emp_rb_7', lastName: 'Dickerson', firstName: 'Dylan', isDriver: false, isManager: false, tempId: '7529' },
-                            { id: 'emp_rb_8', lastName: 'Emigh', firstName: 'Marcus', isDriver: false, isManager: false, tempId: '8367' },
-                            { id: 'emp_rb_9', lastName: 'Freeman', firstName: 'Janelle', isDriver: false, isManager: false, tempId: '8786' },
-                            { id: 'emp_rb_10', lastName: 'Gonzales', firstName: 'Martin', isDriver: false, isManager: false, tempId: '3031' },
-                            { id: 'emp_rb_11', lastName: 'Harris', firstName: 'Kyndra', isDriver: false, isManager: false, tempId: '9902' },
-                            { id: 'emp_rb_12', lastName: 'Harris', firstName: 'Katelyn', isDriver: false, isManager: false, tempId: '6369' },
-                            { id: 'emp_rb_13', lastName: 'McCray', firstName: 'Jalynn', isDriver: false, isManager: false, tempId: '6607' },
-                            { id: 'emp_rb_14', lastName: 'Oliver', firstName: 'Olissa', isDriver: false, isManager: false, tempId: '3813' },
-                            { id: 'emp_rb_15', lastName: 'Speck', firstName: 'Andrew', isDriver: false, isManager: false, tempId: '1522' },
-                            { id: 'emp_rb_16', lastName: 'Stamper', firstName: 'Jordyn', isDriver: false, isManager: true, tempId: '7470' },
-                            { id: 'emp_rb_17', lastName: 'Tugaeff-Perreira', firstName: 'Daniel', isDriver: false, isManager: false, tempId: '7312' },
-                            { id: 'emp_rb_18', lastName: 'Van Lent', firstName: 'Ethan', isDriver: false, isManager: false, tempId: '3373' },
-                            { id: 'emp_rb_19', lastName: 'Warnecke', firstName: 'Nicole', isDriver: false, isManager: false, tempId: '9055' },
-                            { id: 'emp_rb_20', lastName: 'Jones', firstName: 'Sydnee', isDriver: false, isManager: false, tempId: '1' },
-                            { id: 'emp_rb_21', lastName: 'Pacheco-Bonacci', firstName: 'Edward Jerome', isDriver: false, isManager: false, tempId: '2' }
-                        ],
-                        'Redding': [
-                            { id: 'emp_rd_1', lastName: 'Benjamin', firstName: 'Nicholas', isDriver: false, isManager: false, tempId: '0338' },
-                            { id: 'emp_rd_2', lastName: 'Bradley', firstName: 'Mackenna', isDriver: false, isManager: false, tempId: '1759' },
-                            { id: 'emp_rd_3', lastName: 'Brewer', firstName: 'Bryan', isDriver: false, isManager: false, tempId: '2197' },
-                            { id: 'emp_rd_4', lastName: 'Brown', firstName: 'Mark', isDriver: false, isManager: false, tempId: '8269' },
-                            { id: 'emp_rd_5', lastName: 'Davis', firstName: 'Flora', isDriver: false, isManager: false, tempId: '1356' },
-                            { id: 'emp_rd_6', lastName: 'Fisk', firstName: 'Michael', isDriver: false, isManager: false, tempId: '5290' },
-                            { id: 'emp_rd_7', lastName: 'Gama', firstName: 'Madison', isDriver: false, isManager: false, tempId: '8551' },
-                            { id: 'emp_rd_8', lastName: 'Hall', firstName: 'Jenae', isDriver: false, isManager: false, tempId: '1857' },
-                            { id: 'emp_rd_9', lastName: 'Hawkins', firstName: 'Josiah', isDriver: false, isManager: false, tempId: '4998' },
-                            { id: 'emp_rd_10', lastName: 'Hernandez-Wier', firstName: 'Derrick', isDriver: false, isManager: false, tempId: '9419' },
-                            { id: 'emp_rd_11', lastName: 'Holmes', firstName: 'Victoria', isDriver: false, isManager: false, tempId: '3605' },
-                            { id: 'emp_rd_12', lastName: 'Howerton', firstName: 'Curtis', isDriver: false, isManager: false, tempId: '1351' },
-                            { id: 'emp_rd_13', lastName: 'Iwasaki', firstName: 'Daniel', isDriver: false, isManager: false, tempId: '3958' },
-                            { id: 'emp_rd_14', lastName: 'James', firstName: 'Susan', isDriver: false, isManager: false, tempId: '5495' },
-                            { id: 'emp_rd_15', lastName: 'Peery', firstName: 'Cortney', isDriver: false, isManager: false, tempId: '399' },
-                            { id: 'emp_rd_16', lastName: 'Pierce', firstName: 'Chelsey', isDriver: false, isManager: false, tempId: '451' },
-                            { id: 'emp_rd_17', lastName: 'Reyes', firstName: 'Ayden', isDriver: false, isManager: false, tempId: '1442' },
-                            { id: 'emp_rd_18', lastName: 'Sharit', firstName: 'Angelique', isDriver: false, isManager: false, tempId: '7175' },
-                            { id: 'emp_rd_19', lastName: 'Snyder', firstName: 'Kevin', isDriver: false, isManager: false, tempId: '2224' },
-                            { id: 'emp_rd_20', lastName: 'Telfer', firstName: 'Christopher', isDriver: false, isManager: false, tempId: '6039' },
-                            { id: 'emp_rd_21', lastName: 'Tolle', firstName: 'Sean', isDriver: false, isManager: false, tempId: '920' },
-                            { id: 'emp_rd_22', lastName: 'Whipple', firstName: 'Michael', isDriver: false, isManager: false, tempId: '1718' },
-                            { id: 'emp_rd_23', lastName: 'Williams', firstName: 'William', isDriver: false, isManager: true, tempId: '6467' },
-                            { id: 'emp_rd_24', lastName: 'Fee', firstName: 'Katy', isDriver: false, isManager: false, tempId: '1' },
-                            { id: 'emp_rd_25', lastName: 'Roe', firstName: 'Melissa Leanne', isDriver: false, isManager: false, tempId: '2' }
-                        ]
-                    };
-
-                    const saved = localStorage.getItem(getStorageKey());
-                    if (saved) {
-                        try {
-                            const p = JSON.parse(saved);
-                            let loadedEmployees = p.employees || [];
-                            
-                            // Smart Merge v3: Inject the new hardcoded roster if it hasn't been done yet
-                            if (!localStorage.getItem(`sundial-roster-injected-v3-${activeSite.value}`)) {
-                                const defaultForSite = defaultRosters[activeSite.value] || [];
-                                defaultForSite.forEach(defEmp => {
-                                    const exists = loadedEmployees.find(e => e.firstName === defEmp.firstName && e.lastName === defEmp.lastName);
-                                    if (!exists) {
-                                        loadedEmployees.push(defEmp);
-                                    } else {
-                                        // Update the tempId of existing employees to ensure they match the official 3/4 digit IDs
-                                        exists.tempId = defEmp.tempId; 
-                                    }
-                                });
-                                localStorage.setItem(`sundial-roster-injected-v3-${activeSite.value}`, 'true');
-                            }
-
-                            employees.value = loadedEmployees;
-                            numDays.value = 31;
-                            let loadedData = p.dailyData || createEmptyDailyData(31);
-                            
-                            if (loadedData.length < 31) {
-                                const padding = createEmptyDailyData(31 - loadedData.length);
-                                loadedData = [...loadedData, ...padding];
-                            }
-                            dailyData.value = ensureThirtyOneDays(loadedData);
-                            auditLogs.value = p.auditLogs || [];
-                            if (p.currentPayPeriod) currentPayPeriod.value = p.currentPayPeriod;
-                            yearlyArchives.value = p.yearlyArchives || {};
-                        } catch(e) { console.error(e); }
-                    } else {
-                        employees.value = defaultRosters[activeSite.value] || [];
-                        localStorage.setItem(`sundial-roster-injected-v3-${activeSite.value}`, 'true');
-                        
-                        numDays.value = 31;
-                        dailyData.value = createEmptyDailyData(31);
-                        auditLogs.value = [];
-                        yearlyArchives.value = {};
-                    }
-
-                    const savedUsers = localStorage.getItem(getSystemUsersKey());
-                    if (savedUsers) {
-                        try { 
-                            const parsedUsers = JSON.parse(savedUsers); 
-                            
-                            // Legacy Migration to 5-Tier RBAC
-                            for (let pin in parsedUsers) {
-                                let u = parsedUsers[pin];
-                                if (!u.role) {
-                                    if (u.isDev) u.role = 'DEV';
-                                    else if (u.canManageUsers && u.canManageRoles) u.role = 'ADMIN';
-                                    else if (u.canManageUsers) u.role = 'MANAGER';
-                                    else u.role = 'TEAM SHIFT LEAD';
+                                if (currentDay >= dStart && currentDay <= dEnd) {
+                                    const dayObj = mData.dailyData[d];
+                                    const calcObj = mData.calculatedTips ? mData.calculatedTips[d] : null;
                                     
-                                    delete u.canManageUsers;
-                                    delete u.canManageRoles;
-                                    delete u.isDev;
+                                    if (dayObj && dayObj.hours) {
+                                        Object.keys(dayObj.hours).forEach(empId => {
+                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
+                                            totals[empId].hours += parseFloat(dayObj.hours[empId]) || 0;
+                                        });
+                                    }
+                                    if (calcObj && calcObj.tips) {
+                                        Object.keys(calcObj.tips).forEach(empId => {
+                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
+                                            totals[empId].tips += parseFloat(calcObj.tips[empId]) || 0;
+                                        });
+                                    }
+                                    if (dayObj && dayObj.driverTips) {
+                                        Object.keys(dayObj.driverTips).forEach(empId => {
+                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
+                                            totals[empId].tips += parseFloat(dayObj.driverTips[empId]) || 0;
+                                        });
+                                    }
                                 }
                             }
-                            
-                            // SYNC SCRIPT: Force upgrade specific users to ADMIN tier
-                            if (parsedUsers['2437']) parsedUsers['2437'].role = 'ADMIN';
-                            if (parsedUsers['6032']) parsedUsers['6032'].role = 'ADMIN';
-                            if (parsedUsers['4095']) parsedUsers['4095'].role = 'MANAGER';
-                            if (parsedUsers['7470']) parsedUsers['7470'].role = 'TEAM SHIFT LEAD';
-                            if (parsedUsers['6467']) parsedUsers['6467'].role = 'TEAM SHIFT LEAD';
-                            
-                            // SYNC SCRIPT: Ensure Tricia Kaplanis is injected if missing
-                            if (!parsedUsers['7444']) {
-                                parsedUsers['7444'] = defaultSystemUsers['7444'];
+                        };
+
+                        if (yearlyArchives.value) {
+                            for (const year in yearlyArchives.value) {
+                                for (const mIdx in yearlyArchives.value[year]) {
+                                    processMonthData(parseInt(year), parseInt(mIdx), yearlyArchives.value[year][mIdx]);
+                                }
                             }
+                        }
 
-                            systemUsers.value = parsedUsers; 
-                        } catch(e) { console.error(e); }
-                    } else {
-                        systemUsers.value = JSON.parse(JSON.stringify(defaultSystemUsers));
+                        if (currentPayPeriod.value) {
+                            const [currYr, currM] = currentPayPeriod.value.split('-');
+                            processMonthData(parseInt(currYr), parseInt(currM), {
+                                dailyData: dailyData.value,
+                                calculatedTips: calculatedTips.value
+                            });
+                        }
+
+                        let hasData = false;
+                        employees.value.forEach(emp => {
+                            const t = totals[emp.id];
+                            if (t && (t.hours > 0 || t.tips > 0)) {
+                                wsData.push([emp.lastName, formatFirstName(emp), Math.round(t.hours * 100) / 100, Math.round(t.tips * 100) / 100]);
+                                hasData = true;
+                            }
+                        });
+
+                        if (!hasData) {
+                            return showAlert('No recorded hours or tips found in the ledger for the selected dates.');
+                        }
+
+                        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Payroll Report');
+                        XLSX.writeFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_DateRange_Report.xlsx`);
+                        
+                        logAction('Exported Custom Report', `Exported date range report from ${payrollStartDate.value} to ${payrollEndDate.value}`);
+                        showPayrollModal.value = false;
+                    } catch(err) {
+                        console.error(err);
+                        showAlert('Error generating report: ' + err.message);
                     }
-
-                    const savedExts = localStorage.getItem(getExtensionsKey());
-                    if (savedExts) { 
-                        try { extensions.value = JSON.parse(savedExts); } catch(e) {} 
-                    }
-
-                    if (!systemUsers.value['0500']) systemUsers.value['0500'] = defaultSystemUsers['0500'];
-
-                    history.value = [];
-                    historyIndex.value = -1;
-                    isSwitchingSites = false;
-                    pushHistory();
                 };
 
                 const clearData = () => {
                     showConfirm(`Are you sure you want to delete all hours and tips for ${activeSite.value}? (Your employee roster will be saved).`, () => {
                         dailyData.value = createEmptyDailyData(numDays.value);
                         logAction("Reset Pay Period", `Cleared all daily input values for ${activeSite.value}.`);
+                        saveState();
                     });
                 };
 
@@ -3085,6 +2631,7 @@
                     });
                     logAction("Added Employee", `Added ${newEmp.value.first.trim()} ${newEmp.value.last.trim()} to roster.`);
                     newEmp.value = { first: '', last: '', tempId: '', isDriver: false, isManager: false };
+                    saveState();
                 };
 
                 const removeEmployee = (id) => { 
@@ -3092,6 +2639,7 @@
                     showConfirm("Are you sure you want to delete this employee from the roster?", () => {
                         if (empToRemove) logAction("Removed Employee", `Removed ${empToRemove.firstName} ${empToRemove.lastName} from roster.`);
                         employees.value = employees.value.filter(e => e.id !== id);
+                        saveState();
                     });
                 };
 
@@ -3140,10 +2688,218 @@
                     });
                 };
 
-                onMounted(() => {
+                const applySnapshot = (data) => {
+                    const currentDataStr = JSON.stringify({
+                        employees: employees.value,
+                        dailyData: dailyData.value,
+                        numDays: numDays.value,
+                        auditLogs: auditLogs.value,
+                        currentPayPeriod: currentPayPeriod.value,
+                        yearlyArchives: yearlyArchives.value
+                    });
+                    
+                    const newDataStr = JSON.stringify({
+                        employees: data.employees || [],
+                        dailyData: data.dailyData || createEmptyDailyData(31),
+                        numDays: data.numDays || 31,
+                        auditLogs: data.auditLogs || [],
+                        currentPayPeriod: data.currentPayPeriod || '',
+                        yearlyArchives: data.yearlyArchives || {}
+                    });
+
+                    if (currentDataStr === newDataStr) return;
+
+                    employees.value = data.employees || [];
+                    numDays.value = data.numDays || 31;
+                    let loadedData = data.dailyData || createEmptyDailyData(31);
+                    if (loadedData.length < 31) {
+                        const padding = createEmptyDailyData(31 - loadedData.length);
+                        loadedData = [...loadedData, ...padding];
+                    }
+                    dailyData.value = ensureThirtyOneDays(loadedData);
+                    auditLogs.value = data.auditLogs || [];
+                    if (data.currentPayPeriod) currentPayPeriod.value = data.currentPayPeriod;
+                    yearlyArchives.value = data.yearlyArchives || {};
+                    
+                    remoteStateHash = newDataStr;
+                };
+
+                const saveState = async () => {
+                    if (isUndoing || isSwitchingSites || !isDbConnected.value || !auth.currentUser) return;
+                    
+                    const payload = {
+                        employees: employees.value, 
+                        dailyData: dailyData.value, 
+                        numDays: numDays.value, 
+                        auditLogs: auditLogs.value,
+                        currentPayPeriod: currentPayPeriod.value,
+                        yearlyArchives: yearlyArchives.value
+                    };
+
+                    const payloadStr = JSON.stringify(payload);
+                    if (payloadStr === remoteStateHash) return; // Unchanged
+
+                    try {
+                        const siteId = activeSite.value.replace(/\s+/g, '').toLowerCase();
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_sites', siteId), payload);
+                        remoteStateHash = payloadStr;
+                    } catch (e) {
+                        console.error("Failed to push data to cloud:", e);
+                    }
+                };
+
+                const pushHistory = () => {
+                    if (isUndoing || isSwitchingSites) return;
+                    const snap = JSON.stringify({ e: employees.value, d: dailyData.value, n: numDays.value, p: currentPayPeriod.value });
+                    if (historyIndex.value < history.value.length - 1) history.value = history.value.slice(0, historyIndex.value + 1);
+                    if (history.value.length > 0 && history.value[historyIndex.value] === snap) return;
+                    history.value.push(snap);
+                    if (history.value.length > 30) history.value.shift();
+                    historyIndex.value = history.value.length - 1;
+                    saveState();
+                };
+
+                watch([employees, dailyData, numDays, currentPayPeriod], () => pushHistory(), { deep: true });
+
+                const undo = () => {
+                    if (historyIndex.value > 0) {
+                        isUndoing = true; historyIndex.value--;
+                        const snap = JSON.parse(history.value[historyIndex.value]);
+                        employees.value = snap.e; 
+                        
+                        let loadedData = snap.d;
+                        if (loadedData.length < 31) {
+                            const padding = createEmptyDailyData(31 - loadedData.length);
+                            loadedData = [...loadedData, ...padding];
+                        }
+                        dailyData.value = ensureThirtyOneDays(loadedData);
+                        
+                        numDays.value = 31;
+                        if (snap.p) currentPayPeriod.value = snap.p;
+                        saveState();
+                        setTimeout(() => isUndoing = false, 50);
+                    }
+                };
+
+                const loadSiteData = () => {
+                    if (!isDbConnected.value || !auth.currentUser) return;
+                    
+                    if (unsubscribeSite) unsubscribeSite();
+                    const siteId = activeSite.value.replace(/\s+/g, '').toLowerCase();
+                    
+                    unsubscribeSite = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_sites', siteId), (docSnap) => {
+                        if (docSnap.exists()) {
+                            applySnapshot(docSnap.data());
+                        } else {
+                            const defaultRosters = {
+                                'Red Bluff': [
+                                    { id: 'emp_rb_1', lastName: 'Arellano', firstName: 'Franklin', isDriver: false, isManager: false, tempId: '4668' },
+                                    { id: 'emp_rb_2', lastName: 'Barr', firstName: 'Marni', isDriver: false, isManager: false, tempId: '8746' },
+                                    { id: 'emp_rb_3', lastName: 'Burritt-Smith', firstName: 'Anthony', isDriver: false, isManager: false, tempId: '305' },
+                                    { id: 'emp_rb_4', lastName: 'Cooper', firstName: 'Jacob', isDriver: false, isManager: false, tempId: '7497' },
+                                    { id: 'emp_rb_5', lastName: 'Dalton', firstName: 'Holly', isDriver: false, isManager: false, tempId: '3657' },
+                                    { id: 'emp_rb_6', lastName: 'Davis', firstName: 'Shaun', isDriver: false, isManager: false, tempId: '8201' },
+                                    { id: 'emp_rb_7', lastName: 'Dickerson', firstName: 'Dylan', isDriver: false, isManager: false, tempId: '7529' },
+                                    { id: 'emp_rb_8', lastName: 'Emigh', firstName: 'Marcus', isDriver: false, isManager: false, tempId: '8367' },
+                                    { id: 'emp_rb_9', lastName: 'Freeman', firstName: 'Janelle', isDriver: false, isManager: false, tempId: '8786' },
+                                    { id: 'emp_rb_10', lastName: 'Gonzales', firstName: 'Martin', isDriver: false, isManager: false, tempId: '3031' },
+                                    { id: 'emp_rb_11', lastName: 'Harris', firstName: 'Kyndra', isDriver: false, isManager: false, tempId: '9902' },
+                                    { id: 'emp_rb_12', lastName: 'Harris', firstName: 'Katelyn', isDriver: false, isManager: false, tempId: '6369' },
+                                    { id: 'emp_rb_13', lastName: 'McCray', firstName: 'Jalynn', isDriver: false, isManager: false, tempId: '6607' },
+                                    { id: 'emp_rb_14', lastName: 'Oliver', firstName: 'Olissa', isDriver: false, isManager: false, tempId: '3813' },
+                                    { id: 'emp_rb_15', lastName: 'Speck', firstName: 'Andrew', isDriver: false, isManager: false, tempId: '1522' },
+                                    { id: 'emp_rb_16', lastName: 'Stamper', firstName: 'Jordyn', isDriver: false, isManager: true, tempId: '7470' },
+                                    { id: 'emp_rb_17', lastName: 'Tugaeff-Perreira', firstName: 'Daniel', isDriver: false, isManager: false, tempId: '7312' },
+                                    { id: 'emp_rb_18', lastName: 'Van Lent', firstName: 'Ethan', isDriver: false, isManager: false, tempId: '3373' },
+                                    { id: 'emp_rb_19', lastName: 'Warnecke', firstName: 'Nicole', isDriver: false, isManager: false, tempId: '9055' },
+                                    { id: 'emp_rb_20', lastName: 'Jones', firstName: 'Sydnee', isDriver: false, isManager: false, tempId: '1' },
+                                    { id: 'emp_rb_21', lastName: 'Pacheco-Bonacci', firstName: 'Edward Jerome', isDriver: false, isManager: false, tempId: '2' }
+                                ],
+                                'Redding': [
+                                    { id: 'emp_rd_1', lastName: 'Benjamin', firstName: 'Nicholas', isDriver: false, isManager: false, tempId: '0338' },
+                                    { id: 'emp_rd_2', lastName: 'Bradley', firstName: 'Mackenna', isDriver: false, isManager: false, tempId: '1759' },
+                                    { id: 'emp_rd_3', lastName: 'Brewer', firstName: 'Bryan', isDriver: false, isManager: false, tempId: '2197' },
+                                    { id: 'emp_rd_4', lastName: 'Brown', firstName: 'Mark', isDriver: false, isManager: false, tempId: '8269' },
+                                    { id: 'emp_rd_5', lastName: 'Davis', firstName: 'Flora', isDriver: false, isManager: false, tempId: '1356' },
+                                    { id: 'emp_rd_6', lastName: 'Fisk', firstName: 'Michael', isDriver: false, isManager: false, tempId: '5290' },
+                                    { id: 'emp_rd_7', lastName: 'Gama', firstName: 'Madison', isDriver: false, isManager: false, tempId: '8551' },
+                                    { id: 'emp_rd_8', lastName: 'Hall', firstName: 'Jenae', isDriver: false, isManager: false, tempId: '1857' },
+                                    { id: 'emp_rd_9', lastName: 'Hawkins', firstName: 'Josiah', isDriver: false, isManager: false, tempId: '4998' },
+                                    { id: 'emp_rd_10', lastName: 'Hernandez-Wier', firstName: 'Derrick', isDriver: false, isManager: false, tempId: '9419' },
+                                    { id: 'emp_rd_11', lastName: 'Holmes', firstName: 'Victoria', isDriver: false, isManager: false, tempId: '3605' },
+                                    { id: 'emp_rd_12', lastName: 'Howerton', firstName: 'Curtis', isDriver: false, isManager: false, tempId: '1351' },
+                                    { id: 'emp_rd_13', lastName: 'Iwasaki', firstName: 'Daniel', isDriver: false, isManager: false, tempId: '3958' },
+                                    { id: 'emp_rd_14', lastName: 'James', firstName: 'Susan', isDriver: false, isManager: false, tempId: '5495' },
+                                    { id: 'emp_rd_15', lastName: 'Peery', firstName: 'Cortney', isDriver: false, isManager: false, tempId: '399' },
+                                    { id: 'emp_rd_16', lastName: 'Pierce', firstName: 'Chelsey', isDriver: false, isManager: false, tempId: '451' },
+                                    { id: 'emp_rd_17', lastName: 'Reyes', firstName: 'Ayden', isDriver: false, isManager: false, tempId: '1442' },
+                                    { id: 'emp_rd_18', lastName: 'Sharit', firstName: 'Angelique', isDriver: false, isManager: false, tempId: '7175' },
+                                    { id: 'emp_rd_19', lastName: 'Snyder', firstName: 'Kevin', isDriver: false, isManager: false, tempId: '2224' },
+                                    { id: 'emp_rd_20', lastName: 'Telfer', firstName: 'Christopher', isDriver: false, isManager: false, tempId: '6039' },
+                                    { id: 'emp_rd_21', lastName: 'Tolle', firstName: 'Sean', isDriver: false, isManager: false, tempId: '920' },
+                                    { id: 'emp_rd_22', lastName: 'Whipple', firstName: 'Michael', isDriver: false, isManager: false, tempId: '1718' },
+                                    { id: 'emp_rd_23', lastName: 'Williams', firstName: 'William', isDriver: false, isManager: true, tempId: '6467' },
+                                    { id: 'emp_rd_24', lastName: 'Fee', firstName: 'Katy', isDriver: false, isManager: false, tempId: '1' },
+                                    { id: 'emp_rd_25', lastName: 'Roe', firstName: 'Melissa Leanne', isDriver: false, isManager: false, tempId: '2' }
+                                ]
+                            };
+
+                            employees.value = defaultRosters[activeSite.value] || [];
+                            numDays.value = 31;
+                            dailyData.value = createEmptyDailyData(31);
+                            auditLogs.value = [];
+                            yearlyArchives.value = {};
+                        }
+                        
+                        history.value = [];
+                        historyIndex.value = -1;
+                        isSwitchingSites = false;
+                        pushHistory();
+                        nextTick(() => lucide.createIcons());
+                    }, (error) => console.error("Error fetching site state:", error));
+                };
+
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined') {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (e) {
+                        console.error("Auth Error:", e);
+                    }
+                };
+
+                const saveAppAsHTML = () => {
+                    showAlert("The 'Hard Save' feature has been officially retired now that Cloud Sync is active! All data is saved automatically in real-time.");
+                };
+
+                onMounted(async () => {
                     const lastSite = localStorage.getItem('sundial-last-site');
                     if (lastSite && (lastSite === 'Red Bluff' || lastSite === 'Redding')) activeSite.value = lastSite;
-                    loadState();
+                    
+                    await initAuth();
+                    if (!auth.currentUser) {
+                        showAlert("Failed to authenticate with cloud database.");
+                        return;
+                    }
+
+                    onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), (docSnap) => {
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            if (data.systemUsers) systemUsers.value = data.systemUsers;
+                            if (data.extensions) extensions.value = data.extensions;
+                        } else {
+                            setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), {
+                                systemUsers: defaultSystemUsers,
+                                extensions: []
+                            });
+                        }
+                    }, (error) => console.error("Global Setting fetch error:", error));
+
+                    isDbConnected.value = true;
+                    loadSiteData();
                     nextTick(() => lucide.createIcons());
                     
                     window.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); } });
@@ -3160,7 +2916,7 @@
                     activeSite, switchSite, numDays, employees, sortedEmployees, driverEmployees, dailyData, activeTab,
                     showEmployeeModal, showPermissionsModal, newEmp, newUserAuth, editingPin, historyIndex, monthlyStats,
                     calculatedTips, masterTotalTips, masterTotalDistributed, masterTotalVariance, masterDisplayMode, formatCurrency, formatCurrencyBlanks, getHourInputClass, getDriverTipInputClass,
-                    addEmployee, removeEmployee, clearData, exportToExcel, saveAppAsHTML, undo, generateMockData, quickLogin,
+                    addEmployee, removeEmployee, clearData, exportToExcel, undo, generateMockData, quickLogin, saveAppAsHTML,
                     modal, closeModal, confirmModal, formatFirstName, isFullTimeId,
                     loggedInUser, isManagerUnlocked, currentUserAccess, isDevUser, hasPermissionAccess, hasRoleAccess, pinInput, handleLogin, forceLock,
                     systemUsers, saveSystemUser, editSystemUser, cancelEdit, removeSystemUser, ROLE_TIERS, currentUserRoleLevel, availableRolesToAssign, getRoleBadgeClass,
@@ -3175,7 +2931,7 @@
                     yearlyArchives, selectedArchiveYear, multiYearDisplayMode, availableArchiveYears, getMonthName, addNewYearTab, getYearlySummary, getEmployeeYTDTotal, archiveCurrentMonth, exportHistoricalLedger,
                     selectedArchivedMonthDetail, archivedMonthDisplayMode, closeArchivedMonthDetail,
                     scrollToMonth, isCurrentPayPeriodMonth, getMonthDisplayData,
-                    refreshIcons
+                    refreshIcons, isDbConnected
                 };
             }
         });
