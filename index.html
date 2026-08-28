@@ -12,7 +12,42 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Calibri:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    
+    <!-- CSS restored directly into HTML so it never fails to load -->
+    <style>
+        body {
+            font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        ::-webkit-scrollbar { height: 12px; width: 12px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb { background: #b0b0b0; border-radius: 6px; border: 2px solid #f1f1f1; }
+        ::-webkit-scrollbar-thumb:hover { background: #909090; }
+
+        .excel-table { border-collapse: collapse; font-size: 14px; background-color: white; width: 100%; table-layout: fixed; }
+        .excel-table th, .excel-table td { border: 1px solid #d1d5db; padding: 4px 8px; white-space: nowrap; }
+        .excel-table th { font-weight: 600; background-color: #f8f9fa; }
+        .bg-input-yellow { background-color: #fef08a !important; }
+        .bg-white { background-color: #FFFFFF !important; }
+
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number], input[type=text] { -moz-appearance: textfield; width: 100%; height: 100%; border: none; outline: none; background: transparent; font-family: inherit; font-size: inherit; }
+        input[type=number] { text-align: right; }
+
+        .excel-tabs { display: flex; background-color: #e5e7eb; border-top: 1px solid #d1d5db; overflow-x: auto; user-select: none; }
+        .excel-tab { padding: 8px 18px; border-right: 1px solid #d1d5db; border-top: 1px solid transparent; background-color: #e5e7eb; cursor: pointer; font-size: 13px; font-weight: 600; color: #4b5563; transition: all 0.15s ease; white-space: nowrap; }
+        .excel-tab.active { background-color: #fff; color: #15803d; border-top: 3px solid #15803d; font-weight: 700; border-bottom: 1px solid white; margin-bottom: -1px; }
+        .excel-tab:hover:not(.active) { background-color: #d1d5db; }
+        .workspace { flex: 1; overflow: auto; padding: 24px; background-color: white; }
+        [v-cloak] { display: none; }
+    </style>
 </head>
 <body>
     <div id="app" class="h-full flex flex-col" v-cloak>
@@ -195,7 +230,6 @@
 
         <main v-else class="workspace" @mousedown="startDrag" @mousemove="onDrag" @mouseup="stopDrag" @mouseleave="stopDrag">
             
-            <!-- --- MULTI-YEAR CACHED LEDGER --- -->
             <div v-if="activeTab === 'multiyear'" class="h-full overflow-y-auto pr-2">
                 <div class="mb-6 flex flex-wrap justify-between items-center gap-4">
                     <div>
@@ -275,7 +309,6 @@
                     </div>
                 </div>
 
-                <!-- YTD Summary Matrix -->
                 <div class="mb-8 bg-white rounded-xl border border-gray-300 shadow-md p-4">
                     <div class="font-bold text-lg text-gray-900 mb-2 flex items-center justify-between">
                         <span class="flex items-center gap-2"><i data-lucide="trophy" class="w-5 h-5 text-amber-500"></i> {{ selectedArchiveYear }} Annual YTD Summary Matrix</span>
@@ -442,7 +475,6 @@
                 </div>
             </div>
 
-            <!-- --- MASTER & DAILY TABS (Unchanged from original) --- -->
             <div v-else-if="activeTab === 'master'" class="h-full">
                 <div class="mb-6">
                     <div class="text-xl font-bold">RR Sundial {{ activeSite }} LLC</div>
@@ -601,7 +633,6 @@
             </div>
 
             <div v-else-if="activeTab === 'audit'" class="h-full">
-                <!-- Audit tab identical to previous version -->
                 <div class="mb-6 flex justify-between items-center">
                     <div>
                         <div class="text-xl font-bold text-[#217346] flex items-center gap-2"><i data-lucide="clipboard-list" class="w-6 h-6"></i> System Audit Log</div>
@@ -653,6 +684,209 @@
             <div v-for="d in numDays" :key="'tab-'+d" class="excel-tab font-medium" :class="{ active: activeTab === (d - 1) }" @click="activeTab = (d - 1)">Day {{ d }}</div>
             <div v-if="isDevUser" class="excel-tab ml-auto border-l font-medium text-gray-600 bg-gray-200 hover:bg-gray-300" :class="{ active: activeTab === 'audit' }" @click="activeTab = 'audit'"><i data-lucide="clipboard-list" class="w-4 h-4 inline-block align-text-bottom mr-1"></i> Audit Log</div>
         </footer>
+
+        <div v-if="showPayrollModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] backdrop-blur-sm" @click.self="showPayrollModal = false">
+            <div class="bg-white rounded-2xl shadow-2xl w-[450px] max-w-[95vw] flex flex-col overflow-hidden">
+                <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
+                    <h2 class="font-bold text-xl text-gray-800 flex items-center gap-2"><i data-lucide="calendar-clock" class="w-5 h-5 text-blue-600"></i> Date Range Report</h2>
+                    <button @click="showPayrollModal = false" class="text-gray-500 hover:text-red-600 transition-colors p-1.5 bg-gray-200 hover:bg-red-100 rounded-md">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="p-6 flex flex-col gap-5">
+                    <p class="text-sm text-gray-600 font-medium">Select a start and end date to pull total hours and tips per employee across the multi-year ledger.</p>
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="text-[11px] text-gray-600 font-bold uppercase tracking-wide mb-1 block">Start Date</label>
+                            <input type="date" v-model="payrollStartDate" class="border border-gray-300 p-2 w-full rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[11px] text-gray-600 font-bold uppercase tracking-wide mb-1 block">End Date</label>
+                            <input type="date" v-model="payrollEndDate" class="border border-gray-300 p-2 w-full rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                        </div>
+                    </div>
+                    <button @click="generateCustomDateReport" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-sm transition-colors text-sm flex items-center justify-center gap-2 mt-2">
+                        <i data-lucide="download" class="w-4 h-4"></i> Generate Excel Report
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="selectedArchivedMonthDetail" class="fixed inset-0 bg-black/70 flex items-center justify-center z-[250] backdrop-blur-sm" @click.self="closeArchivedMonthDetail">
+            <div class="bg-white rounded-2xl shadow-2xl w-[95vw] max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200">
+                <div class="px-6 py-4 bg-[#217346] text-white flex justify-between items-center shrink-0 shadow-md">
+                    <div>
+                        <h2 class="font-bold text-xl flex items-center gap-2">
+                            <i data-lucide="calendar" class="w-6 h-6"></i>
+                            Archived Daily Ledger &mdash; {{ getMonthName(selectedArchivedMonthDetail.monthIdx) }} {{ selectedArchivedMonthDetail.year }}
+                        </h2>
+                        <p class="text-xs text-green-100 mt-0.5">Read-only historical snapshot showing every single day (Days 1–31) for {{ activeSite }}.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center bg-black/20 p-1 rounded-lg border border-white/20">
+                            <button @click="archivedMonthDisplayMode = 'tips'" :class="{'bg-white text-[#217346] font-bold shadow-sm': archivedMonthDisplayMode === 'tips', 'text-white/80 hover:text-white': archivedMonthDisplayMode !== 'tips'}" class="px-3 py-1 rounded text-xs transition-all">Tips ($)</button>
+                            <button @click="archivedMonthDisplayMode = 'hours'" :class="{'bg-white text-[#217346] font-bold shadow-sm': archivedMonthDisplayMode === 'hours', 'text-white/80 hover:text-white': archivedMonthDisplayMode !== 'hours'}" class="px-3 py-1 rounded text-xs transition-all">Hours (h)</button>
+                        </div>
+                        <button @click="closeArchivedMonthDetail" class="text-white/80 hover:text-white bg-black/20 hover:bg-black/30 p-1.5 rounded-lg transition-colors">
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-gray-100 px-6 py-3 border-b flex flex-wrap gap-6 items-center shrink-0">
+                    <div class="text-xs font-bold text-gray-700">Monthly Tip Pool: <span class="text-base text-gray-900 font-extrabold ml-1">{{ formatCurrency(selectedArchivedMonthDetail.data.pool) }}</span></div>
+                    <div class="w-px h-6 bg-gray-300"></div>
+                    <div class="text-xs font-bold text-gray-700">Total Distributed: <span class="text-base text-gray-900 font-extrabold ml-1">{{ formatCurrency(selectedArchivedMonthDetail.data.totalDistributed) }}</span></div>
+                    <div class="w-px h-6 bg-gray-300"></div>
+                    <div class="text-xs font-bold text-gray-700">Rounding Variance: <span class="text-base font-extrabold ml-1" :class="selectedArchivedMonthDetail.data.variance > 0 ? 'text-green-600' : 'text-red-600'">{{ formatCurrency(selectedArchivedMonthDetail.data.variance, true) }}</span></div>
+                    <div class="ml-auto text-xs text-gray-500 font-medium italic">Archived: {{ new Date(selectedArchivedMonthDetail.data.archivedAt).toLocaleString() }}</div>
+                </div>
+
+                <div class="p-6 overflow-auto flex-1 bg-white">
+                    <table class="excel-table shadow-sm">
+                        <thead>
+                            <tr>
+                                <th class="w-36 text-left font-bold py-2 bg-gray-100">Last Name</th>
+                                <th class="w-36 text-left font-bold py-2 bg-gray-100">First Name</th>
+                                <th v-for="d in 31" :key="'arch-d-th-'+d" class="w-16 text-center font-bold bg-gray-100">Day {{ d }}</th>
+                                <th class="w-28 text-center bg-green-100 font-bold border-l-2 border-black">Month Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="bg-gray-100 border-b-2 border-black">
+                                <td colspan="2" class="text-right font-bold pr-3 text-xs uppercase text-gray-600">Daily Tip Pool &rarr;</td>
+                                <td v-for="d in 31" :key="'arch-d-pool-'+d" class="text-right px-1.5 py-1 text-xs font-bold text-gray-700 bg-gray-100">
+                                    {{ formatCurrencyBlanks(selectedArchivedMonthDetail.data.dailyData?.[d-1]?.pool) }}
+                                </td>
+                                <td class="text-right bg-green-100 border-l-2 border-black font-bold text-green-900 px-2">
+                                    {{ formatCurrencyBlanks(selectedArchivedMonthDetail.data.pool) }}
+                                </td>
+                            </tr>
+
+                            <tr v-for="emp in sortedEmployees" :key="'arch-emp-'+emp.id" class="hover:bg-gray-50">
+                                <td :class="emp.isManager ? 'bg-blue-50 font-semibold text-blue-900' : (emp.isDriver ? 'bg-green-100 font-semibold text-green-900' : '')">{{ emp.lastName }} <span v-if="emp.isManager" class="text-[9px] font-bold text-blue-600 bg-blue-100 px-1 rounded ml-1">MGR</span></td>
+                                <td :class="emp.isManager ? 'bg-blue-50 font-semibold text-blue-900' : (emp.isDriver ? 'bg-green-100 font-semibold text-green-900' : '')">{{ formatFirstName(emp) }}</td>
+                                
+                                <td v-for="d in 31" :key="'arch-emp-td-'+emp.id+'-'+d" class="text-right px-1.5 py-1 text-xs font-medium border-gray-200">
+                                    <template v-if="archivedMonthDisplayMode === 'tips'">
+                                        <div class="flex items-center justify-end gap-1">
+                                            <i v-if="parseFloat(selectedArchivedMonthDetail.data.dailyData?.[d-1]?.driverTips?.[emp.id]) > 0" data-lucide="car" class="w-3 h-3 text-green-500"></i>
+                                            {{ formatCurrencyBlanks((selectedArchivedMonthDetail.data.calculatedTips?.[d-1]?.tips?.[emp.id] || 0) + (parseFloat(selectedArchivedMonthDetail.data.dailyData?.[d-1]?.driverTips?.[emp.id]) || 0)) }}
+                                        </div>
+                                    </template>
+                                    <template v-else>
+                                        <span :class="(selectedArchivedMonthDetail.data.dailyData?.[d-1]?.hours?.[emp.id] || 0) > 0 ? 'text-black font-bold bg-yellow-100 px-1 py-0.5 rounded' : 'text-gray-400'">
+                                            {{ selectedArchivedMonthDetail.data.dailyData?.[d-1]?.hours?.[emp.id] || '-' }}
+                                        </span>
+                                    </template>
+                                </td>
+
+                                <td class="text-right bg-green-50 border-l-2 border-black font-bold text-green-900 px-2">
+                                    <template v-if="archivedMonthDisplayMode === 'tips'">
+                                        {{ formatCurrencyBlanks(selectedArchivedMonthDetail.data.payouts?.[emp.id]) }}
+                                    </template>
+                                    <template v-else>
+                                        {{ selectedArchivedMonthDetail.data.hours?.[emp.id] || 0 }} h
+                                    </template>
+                                </td>
+                            </tr>
+
+                            <tr><td colspan="34" class="border-none h-4 bg-white"></td></tr>
+
+                            <tr>
+                                <td colspan="2" class="text-right font-bold border-none pr-4 text-gray-700 text-xs">Rounding Overage/Underage</td>
+                                <td v-for="d in 31" :key="'arch-var-'+d" class="text-right font-semibold px-1 text-[11px] text-gray-600">
+                                    {{ formatCurrencyBlanks(selectedArchivedMonthDetail.data.calculatedTips?.[d-1]?.variance, true) }}
+                                </td>
+                                <td class="text-right font-bold bg-green-50 border-l-2 border-black text-green-900 px-2">
+                                    {{ formatCurrencyBlanks(selectedArchivedMonthDetail.data.variance, true) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="px-6 py-3 bg-gray-50 border-t flex justify-end">
+                    <button @click="closeArchivedMonthDetail" class="bg-gray-800 hover:bg-gray-900 text-white font-bold px-6 py-2 rounded-lg text-sm shadow transition-colors">Close Overview</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showImportModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[80] backdrop-blur-sm" @click.self="showImportModal = false">
+            <div class="bg-white rounded-2xl shadow-2xl w-[900px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden" @paste="handleGlobalPaste">
+                <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
+                    <h2 class="font-bold text-xl text-gray-800 flex items-center gap-2"><i data-lucide="database" class="w-5 h-5 text-blue-600"></i> Raw Data Uploads & Injection Hub</h2>
+                    <button @click="showImportModal = false" class="text-gray-500 hover:text-red-600 transition-colors p-1.5 bg-gray-200 hover:bg-red-100 rounded-md" title="Close">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                
+                <div class="p-6 flex flex-col gap-6 overflow-y-auto flex-1 bg-white">
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl text-sm shadow-inner shrink-0">
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <i data-lucide="cpu" class="w-5 h-5 text-blue-600"></i>
+                            <p class="font-bold text-base">Smart Data Injection Engine</p>
+                        </div>
+                        <p class="ml-7 text-blue-700/90">Upload a full <strong>.xlsx Excel file</strong>, or use the <strong>AI OCR Scanner</strong> to extract hours/tips from handwritten notes (PDF or Image). You can review and edit the scanned data before processing.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
+                        <div class="p-6 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer relative"
+                            :class="isDraggingExcel ? 'bg-blue-100 border-blue-500 scale-[1.02]' : 'bg-blue-50/50 hover:bg-blue-50 border-blue-300'"
+                            @dragover.prevent="isDraggingExcel = true"
+                            @dragleave.prevent="isDraggingExcel = false"
+                            @drop.prevent="handleExcelDrop"
+                            @click="$refs.fileUpload.click()"
+                        >
+                            <div v-if="isDraggingExcel" class="absolute inset-0 bg-blue-500/10 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-10 pointer-events-none">
+                                <span class="font-bold text-blue-700 text-lg flex items-center gap-2 bg-white px-5 py-2.5 rounded-full shadow-md">
+                                    <i data-lucide="download" class="w-6 h-6"></i> Drop File Here
+                                </span>
+                            </div>
+                            <div class="bg-white p-3 rounded-full shadow-sm mb-1 border border-blue-100">
+                                <i data-lucide="file-spreadsheet" class="w-8 h-8 text-blue-600"></i>
+                            </div>
+                            <h3 class="font-bold text-blue-900 text-base text-center">Drag & Drop Full .XLSX</h3>
+                            <p class="text-[11px] text-blue-600/80 font-medium text-center px-4">Restore an entire 31-day period from a backup.</p>
+                            <input type="file" ref="fileUpload" class="hidden" accept=".xlsx, .xls, .csv" @change="importExcel">
+                        </div>
+
+                        <div class="p-6 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all cursor-pointer relative"
+                            :class="isDraggingOCR ? 'bg-purple-100 border-purple-500 scale-[1.02]' : 'bg-purple-50/40 hover:bg-purple-50 border-purple-300'"
+                            @dragover.prevent="isDraggingOCR = true"
+                            @dragleave.prevent="isDraggingOCR = false"
+                            @drop.prevent="handleOCRDrop"
+                            @click="$refs.ocrUpload.click()"
+                        >
+                            <div v-if="isProcessingOCR" class="absolute inset-0 bg-purple-900/10 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl z-10 pointer-events-none gap-2">
+                                <i data-lucide="loader-2" class="w-8 h-8 text-purple-700 animate-spin"></i>
+                                <span class="font-bold text-purple-900 text-sm bg-white/90 px-3 py-1 rounded shadow-sm">{{ ocrStatus }}</span>
+                            </div>
+                            <div v-else-if="isDraggingOCR" class="absolute inset-0 bg-purple-500/10 backdrop-blur-[1px] flex items-center justify-center rounded-xl z-10 pointer-events-none">
+                                <span class="font-bold text-purple-700 text-lg flex items-center gap-2 bg-white px-5 py-2.5 rounded-full shadow-md">
+                                    <i data-lucide="scan" class="w-6 h-6"></i> Drop Scan Here
+                                </span>
+                            </div>
+
+                            <div class="bg-white p-3 rounded-full shadow-sm mb-1 border border-purple-100">
+                                <i data-lucide="scan-text" class="w-8 h-8 text-purple-600"></i>
+                            </div>
+                            <h3 class="font-bold text-purple-900 text-base text-center">Scan Handwritten Notes</h3>
+                            <p class="text-[11px] text-purple-600/80 font-medium text-center px-4">Upload PDF or Image to extract hours & tips.</p>
+                            <input type="file" ref="ocrUpload" class="hidden" accept="image/*, application/pdf" @change="importOCR">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-2 flex-1 min-h-[200px]">
+                        <label class="text-sm font-bold text-gray-800 flex items-center gap-1.5"><i data-lucide="clipboard-paste" class="w-4 h-4 text-blue-600"></i> Extracted Data Review / Manual Paste (Ctrl+V)</label>
+                        <textarea v-model="pastedRawText" class="flex-1 border border-blue-200 bg-blue-50/30 rounded-xl p-4 text-xs font-mono outline-none focus:border-blue-500 focus:bg-white resize-none shadow-inner transition-colors" placeholder="Scanned OCR data will appear here for you to verify and correct.&#10;&#10;Alternatively, click here and press Ctrl+V to paste data directly from Excel."></textarea>
+                        <button @click="processPastedText" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-sm transition-colors text-sm flex items-center justify-center gap-2">
+                            <i data-lucide="zap" class="w-4 h-4 text-yellow-300"></i> Process Data & Inject to Tab
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div v-if="showPermissionsModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] backdrop-blur-sm" @click.self="showPermissionsModal = false">
             <div class="bg-white rounded-2xl shadow-2xl w-[750px] max-h-[85vh] flex flex-col overflow-hidden">
@@ -763,10 +997,8 @@
             </div>
         </div>
 
-        <!-- Modals... -->
         <div v-if="showEmployeeModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm" @click.self="showEmployeeModal = false">
-            <!-- Modal Content Unchanged -->
-             <div class="bg-white rounded-2xl shadow-2xl w-[600px] max-h-[85vh] flex flex-col overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-2xl w-[600px] max-h-[85vh] flex flex-col overflow-hidden">
                 <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
                     <h2 class="font-bold text-xl text-gray-800 flex items-center gap-2"><i data-lucide="users" class="w-5 h-5 text-[#217346]"></i> Manage Roster ({{ activeSite }})</h2>
                     <button @click="showEmployeeModal = false" class="text-gray-500 hover:text-red-600 transition-colors p-1.5 bg-gray-200 hover:bg-red-100 rounded-md">
