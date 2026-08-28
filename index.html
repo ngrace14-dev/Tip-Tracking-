@@ -1088,8 +1088,16 @@
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // FIREBASE INITIALIZATION
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sundial-default-app';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = 'tips-tracker-40710';
+        const firebaseConfig = {
+            apiKey: "AIzaSyDoYOEY21cq63oqoW50eMfHcjyOwfiEMVA",
+            authDomain: "tips-tracker-40710.firebaseapp.com",
+            projectId: "tips-tracker-40710",
+            storageBucket: "tips-tracker-40710.firebasestorage.app",
+            messagingSenderId: "785955241640",
+            appId: "1:785955241640:web:5348673ef90e13c3208c9d",
+            measurementId: "G-HG381FZG0N"
+        };
         const fbApp = initializeApp(firebaseConfig);
         const db = getFirestore(fbApp);
         const auth = getAuth(fbApp);
@@ -2861,13 +2869,14 @@
 
                 const initAuth = async () => {
                     try {
-                        if (typeof __initial_auth_token !== 'undefined') {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
+                        // We removed the Canvas testing tokens. 
+                        // Force the app to connect securely to your production database using Anonymous Auth.
+                        await signInAnonymously(auth);
                     } catch (e) {
                         console.error("Auth Error:", e);
+                        if (e.code === 'auth/admin-restricted-operation' || e.code === 'auth/operation-not-allowed') {
+                            showAlert("Firebase Auth Error: Please ensure 'Anonymous' Sign-In is enabled in your Firebase Console (Build -> Authentication -> Sign-in method).");
+                        }
                     }
                 };
 
