@@ -242,7 +242,6 @@ const app = createApp({
         };
 
         // --- NEW COMPUTED PROPERTIES TO PREVENT RENDER CRASHES ---
-        
         const activeYearDisplayData = computed(() => {
             const year = selectedArchiveYear.value;
             const dataMap = {};
