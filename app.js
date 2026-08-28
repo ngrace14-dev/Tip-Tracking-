@@ -241,6 +241,96 @@ const app = createApp({
             return year === selectedArchiveYear.value && parseInt(monthStr, 10) === mIdx;
         };
 
+        // --- NEW COMPUTED PROPERTIES TO PREVENT RENDER CRASHES ---
+        
+        const activeYearDisplayData = computed(() => {
+            const year = selectedArchiveYear.value;
+            const dataMap = {};
+            
+            // Pre-calculate live hours once so we don't repeat it 7,500 times
+            const liveHours = {};
+            employees.value.forEach(emp => {
+                let h = 0;
+                dailyData.value.forEach(day => {
+                    h += parseFloat(day?.hours?.[emp.id]) || 0;
+                });
+                liveHours[emp.id] = h;
+            });
+
+            for (let m = 1; m <= 12; m++) {
+                if (yearlyArchives.value[year]?.[m]) {
+                    dataMap[m] = yearlyArchives.value[year][m];
+                } else {
+                    let isLiveMonth = false;
+                    if (currentPayPeriod.value) {
+                        const [currYr, currMStr] = currentPayPeriod.value.split('-');
+                        if (currYr === year && parseInt(currMStr, 10) === m) {
+                            isLiveMonth = true;
+                        }
+                    }
+
+                    if (isLiveMonth) {
+                        dataMap[m] = {
+                            pool: masterTotalTips.value,
+                            totalDistributed: masterTotalDistributed.value,
+                            variance: masterTotalVariance.value,
+                            payouts: monthlyStats.value.finalPayouts,
+                            hours: liveHours,
+                            dailyData: dailyData.value,
+                            calculatedTips: calculatedTips.value,
+                            isLive: true
+                        };
+                    } else {
+                        dataMap[m] = {
+                            pool: 0,
+                            totalDistributed: 0,
+                            variance: 0,
+                            payouts: {},
+                            hours: {},
+                            dailyData: [],
+                            calculatedTips: []
+                        };
+                    }
+                }
+            }
+            return dataMap;
+        });
+
+        const activeYearSummary = computed(() => {
+            let totalPool = 0;
+            let totalDistributed = 0;
+            let totalVariance = 0;
+            let archivedCount = 0;
+            const year = selectedArchiveYear.value;
+
+            for (let m = 1; m <= 12; m++) {
+                const mData = activeYearDisplayData.value[m];
+                if (yearlyArchives.value[year]?.[m]) {
+                    archivedCount++;
+                }
+                totalPool += parseFloat(mData.pool) || 0;
+                totalDistributed += parseFloat(mData.totalDistributed) || 0;
+                totalVariance += parseFloat(mData.variance) || 0;
+            }
+            return { totalPool, totalDistributed, totalVariance, archivedCount };
+        });
+
+        const activeYearEmployeeYTD = computed(() => {
+            const totals = {};
+            employees.value.forEach(emp => {
+                let tips = 0;
+                let hours = 0;
+                for (let m = 1; m <= 12; m++) {
+                    const mData = activeYearDisplayData.value[m];
+                    tips += mData.payouts?.[emp.id] || 0;
+                    hours += mData.hours?.[emp.id] || 0;
+                }
+                totals[emp.id] = { tips, hours };
+            });
+            return totals;
+        });
+
+        // Retaining these original methods solely for the background Excel Exporter
         const getMonthDisplayData = (year, mIdx) => {
             if (yearlyArchives.value[year]?.[mIdx]) {
                 return yearlyArchives.value[year][mIdx];
@@ -269,15 +359,7 @@ const app = createApp({
                     };
                 }
             }
-            return {
-                pool: 0,
-                totalDistributed: 0,
-                variance: 0,
-                payouts: {},
-                hours: {},
-                dailyData: [],
-                calculatedTips: []
-            };
+            return { pool: 0, totalDistributed: 0, variance: 0, payouts: {}, hours: {}, dailyData: [], calculatedTips: [] };
         };
 
         const getYearlySummary = (year) => {
@@ -1888,6 +1970,7 @@ const app = createApp({
             yearlyArchives, selectedArchiveYear, multiYearDisplayMode, availableArchiveYears, getMonthName, addNewYearTab, getYearlySummary, getEmployeeYTDTotal, archiveCurrentMonth, exportHistoricalLedger,
             selectedArchivedMonthDetail, archivedMonthDisplayMode, closeArchivedMonthDetail,
             scrollToMonth, isCurrentPayPeriodMonth, getMonthDisplayData,
+            activeYearDisplayData, activeYearSummary, activeYearEmployeeYTD,
             refreshIcons, isDbConnected
         };
     }
