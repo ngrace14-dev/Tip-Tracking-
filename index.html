@@ -1734,10 +1734,6 @@
 
                 const handleLogin = () => {
                     let parsedPin = pinInput.value.trim();
-                    
-                    if (parsedPin.length >= 8) {
-                        parsedPin = parsedPin.substring(parsedPin.length - 4);
-                    }
 
                     if (parsedPin.length === 8) {
                         const adminPin = parsedPin.substring(0, 4);
