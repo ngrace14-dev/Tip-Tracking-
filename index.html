@@ -1689,7 +1689,10 @@
 
                 const showAlert = (msg) => { modal.value = { isOpen: true, type: 'alert', message: msg, onConfirm: null }; refreshIcons(); };
                 const closeModal = () => { modal.value.isOpen = false; };
-                const confirmModal = () => { closeModal(); };
+                const confirmModal = () => { 
+                    if (modal.value.onConfirm) modal.value.onConfirm();
+                    closeModal(); 
+                };
 
                 const closeArchivedMonthDetail = () => {
                     selectedArchivedMonthDetail.value = null;
