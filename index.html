@@ -1,10 +1,354 @@
-<!-- ... existing code ... -->
-        <div v-if="showPermissionsModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] backdrop-blur-sm" @click.self="showPermissionsModal = false">
-            <!-- ... existing code ... -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RREDCO Tip Tracker (Cloud Sync)</title>
+    
+    <!-- External CDN Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Calibri:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Calibri', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        [v-cloak] { display: none !important; }
+
+        .excel-table {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: white;
+            font-size: 13px;
+        }
+        
+        .excel-table th, .excel-table td {
+            border: 1px solid #d1d5db;
+            padding: 4px 8px;
+            white-space: nowrap;
+        }
+        
+        .excel-table th {
+            background-color: #f3f4f6;
+            color: #374151;
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .bg-input-yellow {
+            background-color: #fef08a !important;
+        }
+
+        .excel-tabs {
+            display: flex;
+            background-color: #e5e7eb;
+            border-top: 1px solid #d1d5db;
+            padding-left: 8px;
+            overflow-x: auto;
+            user-select: none;
+        }
+
+        .excel-tab {
+            padding: 6px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5563;
+            background-color: #d1d5db;
+            border: 1px solid #9ca3af;
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+            margin-right: 4px;
+            cursor: cursor;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+        }
+
+        .excel-tab:hover {
+            background-color: #e5e7eb;
+        }
+
+        .excel-tab.active {
+            background-color: #ffffff;
+            color: #217346;
+            font-weight: 700;
+            border-top: 3px solid #217346;
+        }
+
+        .workspace {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="h-full flex flex-col" v-cloak>
+        
+        <!-- Loading Overlay -->
+        <div v-if="!isDbConnected" class="fixed inset-0 bg-[#217346] flex flex-col items-center justify-center z-[500] text-white">
+            <i data-lucide="cloud-cog" class="w-16 h-16 animate-bounce mb-4"></i>
+            <h2 class="text-2xl font-bold tracking-widest uppercase mb-1">RREDCO Tip Tracker</h2>
+            <p class="text-green-200 font-medium flex items-center gap-2">
+                <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Authenticating & Connecting to Cloud Database...
+            </p>
         </div>
 
+        <!-- Header -->
+        <header class="bg-[#217346] text-white px-5 py-3 flex flex-wrap xl:flex-nowrap justify-between items-center shrink-0 shadow-md z-20 gap-y-3">
+            <div class="flex flex-col justify-center w-full md:w-auto xl:w-1/4 gap-1 order-1">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="table-2" class="w-6 h-6"></i>
+                    <span class="font-bold tracking-wide text-lg">RREDCO Tip Tracker</span>
+                    <span class="bg-green-800 text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-widest flex items-center gap-1 shadow-inner border border-green-700/50">
+                        <i data-lucide="cloud-lightning" class="w-3 h-3 text-yellow-400"></i> Cloud Sync
+                    </span>
+                </div>
+                <div v-if="isManagerUnlocked" class="flex items-center gap-1.5 text-xs">
+                    <span class="text-green-100 font-medium">Period:</span>
+                    <input type="month" v-model="currentPayPeriod" @change="handlePeriodChange" class="bg-black/20 hover:bg-black/30 border border-white/20 rounded px-2 py-0.5 text-white outline-none cursor-pointer transition-colors" style="color-scheme: dark;" :disabled="!isManagerUnlocked">
+                </div>
+            </div>
+
+            <!-- Site Switcher Tabs -->
+            <div class="flex justify-center w-full md:w-auto xl:w-1/2 order-3 xl:order-2">
+                <div class="flex bg-black/20 p-1 rounded-lg shadow-inner" v-if="isManagerUnlocked">
+                    <button v-if="currentUserAccess.includes('Red Bluff')" @click="switchSite('Red Bluff')" 
+                            :class="activeSite === 'Red Bluff' ? 'bg-white text-[#217346] shadow-sm font-bold' : 'text-white/80 hover:text-white'" 
+                            class="px-5 py-1.5 rounded text-sm transition-all">
+                        Red Bluff
+                    </button>
+                    <button v-if="currentUserAccess.includes('Redding')" @click="switchSite('Redding')" 
+                            :class="activeSite === 'Redding' ? 'bg-blue-600 text-white shadow-sm font-bold' : 'text-white/80 hover:text-white'" 
+                            class="px-5 py-1.5 rounded text-sm transition-all">
+                        Redding
+                    </button>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center justify-end gap-2 w-full md:w-auto xl:w-1/4 order-2 xl:order-3 flex-wrap">
+                <div v-if="isManagerUnlocked" class="flex items-center gap-2 mr-1 bg-white/10 px-3 py-1.5 rounded shadow-inner border border-white/20 transition-colors" :class="timeRemaining <= 90 ? 'bg-red-500/30 border-red-400' : ''">
+                    <div class="flex flex-col relative group">
+                        <div class="flex items-center gap-2 cursor-pointer py-1">
+                            <i data-lucide="user" class="w-4 h-4 text-white"></i> 
+                            <span class="text-sm font-bold text-white">{{ loggedInUser }}</span>
+                        </div>
+                    </div>
+                    <div class="w-px h-4 bg-white/30 mx-1"></div>
+                    <i data-lucide="clock" class="w-4 h-4" :class="timeRemaining <= 90 ? 'text-amber-300 animate-pulse' : 'text-green-300'"></i> 
+                    <span class="text-sm font-mono font-bold" :class="timeRemaining <= 90 ? 'text-amber-300' : 'text-green-200'">{{ formattedTimeRemaining }}</span>
+                </div>
+
+                <template v-if="isManagerUnlocked">
+                    <button @click="forceLock('User manually locked the app.')" class="bg-red-500 hover:bg-red-600 border border-red-700/50 text-xs sm:text-sm text-white px-3 py-1.5 rounded flex items-center gap-1.5 shadow transition-colors" title="Lock App">
+                        <i data-lucide="lock" class="w-4 h-4"></i> 
+                        <span class="hidden xl:inline font-semibold">Lock</span>
+                    </button>
+                    <div class="w-px h-6 bg-white/30 mx-0.5"></div>
+
+                    <button v-if="hasPermissionAccess" @click="showPermissionsModal = true; refreshIcons()" class="text-xs sm:text-sm bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow transition-colors" title="Manage PINs & Access">
+                        <i data-lucide="key" class="w-4 h-4"></i> <span class="hidden xl:inline">Manage PINs</span>
+                    </button>
+
+                    <button @click="showEmployeeModal = true; refreshIcons()" class="text-xs sm:text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded flex items-center gap-1 transition-colors" title="Manage Roster">
+                        <i data-lucide="users" class="w-4 h-4"></i> <span class="hidden xl:inline">Roster</span>
+                    </button>
+
+                    <button @click="exportToExcel" class="text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow transition-colors" title="Export Excel Backup">
+                        <i data-lucide="download" class="w-4 h-4"></i> <span class="hidden xl:inline">Export Excel</span>
+                    </button>
+
+                    <button @click="clearData()" class="text-xs sm:text-sm bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded flex items-center gap-1 transition-colors" title="Reset Pay Period Data">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+
+                    <button @click="archiveCurrentMonth" class="text-xs sm:text-sm bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded flex items-center gap-1.5 shadow transition-colors" title="Archive Current Month">
+                        <i data-lucide="archive" class="w-4 h-4"></i> <span class="hidden xl:inline">Archive Month</span>
+                    </button>
+                </template>
+            </div>
+        </header>
+
+        <!-- Login Screen -->
+        <main v-if="!isManagerUnlocked" class="flex-1 flex flex-col items-center justify-center bg-gray-100">
+             <div class="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-full mx-4 border border-gray-200 text-center transform transition-all relative">
+                 <div v-if="!setup2FA.isOpen">
+                     <div class="bg-[#217346]/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                         <i data-lucide="shield-check" class="w-10 h-10 text-[#217346]"></i>
+                     </div>
+                     <h2 class="text-2xl font-bold text-gray-800 mb-2">RREDCO Tip Tracker</h2>
+                     <p class="text-gray-500 mb-8 font-medium">Please enter your 8-digit PIN to securely access store data.</p>
+                     
+                     <div class="relative max-w-xs mx-auto">
+                         <input type="password" v-model="pinInput" @keyup.enter="handleLogin" class="border-2 border-gray-300 p-4 w-full rounded-xl focus:ring-4 focus:ring-green-600/20 focus:border-[#217346] outline-none text-center text-4xl tracking-[0.5em] mb-6 font-mono font-bold text-gray-800 transition-all placeholder-gray-300" placeholder="••••••••" autofocus autocomplete="new-password">
+                     </div>
+                     
+                     <button @click="handleLogin" class="w-full py-3.5 bg-[#217346] hover:bg-[#185c37] text-white rounded-xl font-bold text-lg shadow-md transition-colors flex items-center justify-center gap-2">
+                         <i data-lucide="unlock" class="w-5 h-5"></i> Access Tracker
+                     </button>
+                 </div>
+             </div>
+        </main>
+
+        <!-- Main Workspace -->
+        <main v-else class="workspace">
+            <!-- Master Tab -->
+            <div v-if="activeTab === 'master'" class="h-full">
+                <div class="mb-6">
+                    <div class="text-xl font-bold">RR Sundial {{ activeSite }} LLC</div>
+                    <div class="text-lg text-gray-600">Tip Tracker/Calculator <span v-if="formattedPayPeriod" class="text-[#217346] font-semibold ml-1">- {{ formattedPayPeriod }}</span></div>
+                </div>
+
+                <div class="flex flex-wrap gap-6 mb-6 bg-gray-50 p-4 rounded-lg border shadow-sm">
+                    <div class="flex items-center shadow-sm">
+                        <div class="border border-black px-3 py-2 bg-[#217346] text-white w-48 h-14 flex items-center leading-tight font-bold text-sm">Total Tip Pool<br>(Sum of all days)</div>
+                        <div class="border-y border-r border-black px-3 py-2 bg-gray-100 w-36 h-14 flex items-center font-bold text-xl text-gray-800">
+                            {{ formatCurrency(masterTotalTips) }}
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center shadow-sm">
+                        <div class="border border-black px-3 py-2 bg-white text-black w-48 h-14 flex items-center leading-tight font-bold text-sm">Total Distributed<br>(After rounding)</div>
+                        <div class="border-y border-r border-black px-3 py-2 w-36 h-14 flex items-center bg-white font-bold text-xl">
+                            {{ formatCurrency(masterTotalDistributed) }}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center shadow-sm" v-if="masterTotalVariance !== 0">
+                        <div class="border border-black px-3 py-2 bg-white w-48 h-14 flex items-center leading-tight font-medium text-sm">Rounding Variance<br>(Overage/Underage)</div>
+                        <div class="border-y border-r border-black px-3 py-2 w-36 h-14 flex items-center font-bold text-xl" :class="masterTotalVariance > 0 ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'">
+                            {{ formatCurrency(masterTotalVariance, true) }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-end mb-2">
+                    <div class="text-sm font-bold text-red-600 flex items-center gap-1">
+                        <i data-lucide="lock" class="w-4 h-4"></i> Master Sheet is Read-Only. Edit hours on daily tabs below.
+                    </div>
+                </div>
+
+                <!-- Master Roster Table (Filtered Strictly for Active Site) -->
+                <div class="overflow-x-auto pb-8">
+                    <table class="excel-table shadow-sm">
+                        <thead>
+                            <tr>
+                                <th class="w-40 text-left font-bold py-2">Last Name</th>
+                                <th class="w-40 text-left font-bold py-2">First Name</th>
+                                <th v-for="d in numDays" :key="'m-th-'+d" class="w-20 text-center font-bold">{{ d }}</th>
+                                <th class="w-28 text-center bg-green-100 font-bold border-l-2 border-black">Final<br>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="bg-[#f8f9fa] border-b-2 border-black">
+                                <td colspan="2" class="text-right font-bold pr-3 text-xs uppercase text-gray-600">Daily Tip Pool (Locked) &rarr;</td>
+                                <td v-for="d in numDays" :key="'m-pool-'+d" class="p-0 relative bg-gray-100 cursor-not-allowed border-gray-300">
+                                    <div class="text-right px-2 py-1.5 w-full h-full text-sm font-bold text-gray-600">{{ formatCurrencyBlanks(dailyData[d-1]?.pool) }}</div>
+                                </td>
+                                <td class="bg-gray-100 border-l-2 border-black"></td>
+                            </tr>
+
+                            <tr v-for="emp in sortedEmployees" :key="'m-'+emp.id" class="hover:bg-gray-50">
+                                <td :class="emp.isManager ? 'bg-blue-50 font-semibold text-blue-900' : (emp.isDriver ? 'bg-green-100 font-semibold text-green-900' : '')">{{ emp.lastName }}</td>
+                                <td :class="emp.isManager ? 'bg-blue-50 font-semibold text-blue-900' : (emp.isDriver ? 'bg-green-100 font-semibold text-green-900' : '')">{{ formatFirstName(emp) }}</td>
+                                <td v-for="d in numDays" :key="'m-td-'+emp.id+'-'+d" class="text-right p-0 bg-gray-50 border-gray-200">
+                                    <div class="px-2 py-1.5 flex items-center justify-end gap-1">
+                                        {{ formatCurrencyBlanks((calculatedTips[d-1]?.tips?.[emp.id] || 0) + (parseFloat(dailyData[d-1]?.driverTips?.[emp.id]) || 0)) }}
+                                    </div>
+                                </td>
+                                <td class="text-right bg-green-50 border-l-2 border-black font-bold text-green-900 px-2">{{ formatCurrencyBlanks(monthlyStats.finalPayouts[emp.id]) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Daily Entry Tab -->
+            <div v-else-if="typeof activeTab === 'number'" class="h-full max-w-4xl mx-auto">
+                <div class="flex items-end gap-0 mb-6 mt-4">
+                    <div class="border border-black px-3 py-2 bg-white w-40 h-14 flex items-center leading-tight font-bold">Total Amount of<br>Tips</div>
+                    <div class="border-y border-r border-black px-3 py-2 w-40 h-14 flex items-center text-xl font-bold relative bg-input-yellow">
+                        <span class="absolute left-3 text-gray-700">$</span>
+                        <input type="number" v-model.number="dailyData[activeTab].pool" min="0" step="0.01" class="pl-6 w-full font-bold bg-transparent outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-bold text-lg mb-2 text-[#217346]">Floor Hours & Distribution ({{ activeSite }})</h3>
+                        <table class="excel-table w-full shadow-sm">
+                            <thead>
+                                <tr>
+                                    <th class="w-1/3 text-left font-bold py-2">Last Name</th>
+                                    <th class="w-1/3 text-left font-bold py-2">First Name</th>
+                                    <th class="w-1/6 text-center font-bold py-2">Hours Worked</th>
+                                    <th class="w-1/6 text-right font-bold py-2 pr-3">Tip Distribution</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="emp in sortedEmployees" :key="'d-'+emp.id" class="hover:bg-gray-50">
+                                    <td>{{ emp.lastName }}</td>
+                                    <td>{{ formatFirstName(emp) }}</td>
+                                    <td class="p-0">
+                                        <input type="number" v-model.number="dailyData[activeTab].hours[emp.id]" min="0" step="0.01" class="text-right px-3 py-2 w-full h-full font-medium outline-none bg-yellow-50 focus:bg-white">
+                                    </td>
+                                    <td class="text-right pr-3 font-medium text-gray-700 bg-gray-50">{{ formatCurrencyBlanks(calculatedTips[activeTab].tips[emp.id]) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        <h3 class="font-bold text-lg mb-2 text-green-700 flex items-center gap-2">
+                            <i data-lucide="car" class="w-5 h-5"></i> Driver Delivery Tips
+                        </h3>
+                        <table class="excel-table w-full shadow-sm">
+                            <thead>
+                                <tr>
+                                    <th class="w-2/3 text-left font-bold py-2 px-3 bg-green-50">Driver Name</th>
+                                    <th class="w-1/3 text-right font-bold py-2 pr-3 bg-green-50">Direct Tip Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="driverEmployees.length === 0">
+                                    <td colspan="2" class="text-center py-6 text-gray-500 italic">No drivers currently assigned to {{ activeSite }}.</td>
+                                </tr>
+                                <tr v-for="driver in driverEmployees" :key="'drv-'+driver.id" class="hover:bg-gray-50">
+                                    <td class="font-medium px-3 bg-green-100/30 text-gray-900">{{ driver.lastName }}, {{ formatFirstName(driver) }}</td>
+                                    <td class="p-0 border-l-0 relative">
+                                        <input type="number" v-model.number="dailyData[activeTab].driverTips[driver.id]" min="0" step="0.01" class="text-right px-3 py-2 w-full h-full font-bold bg-yellow-50 focus:bg-white outline-none">
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer Navigation Tabs -->
+        <footer v-if="isManagerUnlocked" class="excel-tabs shrink-0 z-10 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+            <div class="excel-tab" :class="{ active: activeTab === 'master' }" @click="activeTab = 'master'">Master</div>
+            <div v-for="d in numDays" :key="'tab-'+d" class="excel-tab font-medium" :class="{ active: activeTab === (d - 1) }" @click="activeTab = (d - 1)">Day {{ d }}</div>
+        </footer>
+
+        <!-- Manage Roster Modal with Location Checkboxes -->
         <div v-if="showEmployeeModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] backdrop-blur-sm" @click.self="showEmployeeModal = false">
-            <div class="bg-white rounded-2xl shadow-2xl w-[820px] max-h-[85vh] flex flex-col overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-2xl w-[850px] max-h-[85vh] flex flex-col overflow-hidden">
                 <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
                     <h2 class="font-bold text-xl text-gray-800 flex items-center gap-2">
                         <i data-lucide="users" class="w-5 h-5 text-[#217346]"></i> Manage Roster ({{ activeSite }})
@@ -60,7 +404,7 @@
                         </div>
                     </div>
 
-                    <!-- Roster Table with Store Location Checkboxes -->
+                    <!-- Roster Table with Location Checkboxes -->
                     <div class="border rounded-xl shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
                         <div class="overflow-y-auto flex-1">
                             <table class="w-full text-sm relative">
@@ -119,5 +463,305 @@
             </div>
         </div>
 
+        <!-- System Notice Modal -->
         <div v-if="modal.isOpen" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[300] backdrop-blur-sm">
-<!-- ... existing code ... -->
+            <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-gray-200">
+                <div class="flex items-center gap-3 mb-4 text-gray-800">
+                    <i v-if="modal.type === 'confirm'" data-lucide="help-circle" class="w-6 h-6 text-blue-500"></i>
+                    <i v-else data-lucide="info" class="w-6 h-6 text-[#217346]"></i>
+                    <h3 class="font-bold text-lg">{{ modal.type === 'confirm' ? 'Confirm Action' : 'Notice' }}</h3>
+                </div>
+                <p class="mb-6 text-gray-600 text-sm leading-relaxed">{{ modal.message }}</p>
+                <div class="flex justify-end gap-3">
+                    <button v-if="modal.type === 'confirm'" @click="closeModal" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800 font-medium transition-colors text-sm">Cancel</button>
+                    <button @click="confirmModal" class="px-4 py-2 bg-[#217346] hover:bg-[#185c37] text-white rounded-lg font-medium shadow-sm transition-colors text-sm">OK</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Integrated Vue JavaScript Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // FIREBASE INITIALIZATION
+        const appId = 'tips-tracker-40710';
+        const firebaseConfig = {
+            apiKey: "AIzaSyDoYOEY21cq63oqoW50eMfHcjyOwfiEMVA",
+            authDomain: "tips-tracker-40710.firebaseapp.com",
+            projectId: "tips-tracker-40710",
+            storageBucket: "tips-tracker-40710.firebasestorage.app",
+            messagingSenderId: "785955241640",
+            appId: "1:785955241640:web:5348673ef90e13c3208c9d",
+            measurementId: "G-HG381FZG0N"
+        };
+        const fbApp = initializeApp(firebaseConfig);
+        const db = getFirestore(fbApp);
+        const auth = getAuth(fbApp);
+
+        const { createApp, ref, computed, watch, onMounted, nextTick } = window.Vue;
+
+        const createEmptyDailyData = (daysCount) => {
+            return Array.from({ length: daysCount }, () => ({ pool: null, hours: {}, driverTips: {} }));
+        };
+
+        const sanitizeEmployees = (empList) => {
+            if (!Array.isArray(empList)) return [];
+            const reddingIds = new Set(['emp_0338', 'emp_1759', 'emp_2197', 'emp_8269', 'emp_1356', 'emp_5290', 'emp_8551', 'emp_1857', 'emp_4998', 'emp_9419', 'emp_3605', 'emp_1351', 'emp_3958', 'emp_5495', 'emp_0399', 'emp_0451', 'emp_1442', 'emp_7175', 'emp_2224', 'emp_6039', 'emp_0920', 'emp_1718', 'emp_6467', '0338', '1759', '2197', '8269', '1356', '5290', '8551', '1857', '4998', '9419', '3605', '1351', '3958', '5495', '0399', '0451', '1442', '7175', '2224', '6039', '0920', '1718', '6467']);
+            const redBluffIds = new Set(['emp_4668', 'emp_8746', 'emp_0305', 'emp_7497', 'emp_3657', 'emp_8201', 'emp_7529', 'emp_8367', 'emp_8786', 'emp_3031', 'emp_9902', 'emp_6369', 'emp_6607', 'emp_3813', 'emp_1522', 'emp_7470', 'emp_7312', 'emp_3373', 'emp_9055', '4668', '8746', '0305', '7497', '3657', '8201', '7529', '8367', '8786', '3031', '9902', '6369', '6607', '3813', '1522', '7470', '7312', '3373', '9055']);
+
+            return empList.map(emp => {
+                let sites = emp.sites;
+                if (!sites || !Array.isArray(sites) || sites.length === 0) {
+                    const tempIdStr = String(emp.tempId || emp.id || '').trim();
+                    if (reddingIds.has(emp.id) || reddingIds.has(tempIdStr)) {
+                        sites = ['Redding'];
+                    } else if (redBluffIds.has(emp.id) || redBluffIds.has(tempIdStr)) {
+                        sites = ['Red Bluff'];
+                    } else {
+                        sites = ['Red Bluff', 'Redding'];
+                    }
+                }
+                return { ...emp, sites };
+            });
+        };
+
+        const app = createApp({
+            setup() {
+                const isDbConnected = ref(false); 
+                let unsubscribeSite = null;
+                let remoteStateHash = '';
+
+                const activeSite = ref('Red Bluff');
+                const numDays = ref(31); 
+                const employees = ref([]); // Shared master roster across both sites
+                const dailyData = ref(createEmptyDailyData(31));
+                const activeTab = ref('master'); 
+                const showEmployeeModal = ref(false);
+                const showPermissionsModal = ref(false);
+                const currentPayPeriod = ref(new Date().toISOString().slice(0, 7));
+                const timeRemaining = ref(300);
+
+                const newEmp = ref({ first: '', last: '', tempId: '', isDriver: false, isManager: false, siteRB: true, siteRD: true });
+                const modal = ref({ isOpen: false, type: 'alert', message: '', onConfirm: null });
+                const currentUserData = ref({ name: 'Admin Manager', access: ['Red Bluff', 'Redding'], role: 'ADMIN' });
+
+                const loggedInUser = computed(() => currentUserData.value ? currentUserData.value.name : null);
+                const currentUserAccess = computed(() => currentUserData.value ? currentUserData.value.access : []);
+                const isManagerUnlocked = computed(() => currentUserData.value !== null);
+                const hasPermissionAccess = computed(() => true);
+
+                const formattedPayPeriod = computed(() => {
+                    if (!currentPayPeriod.value) return '';
+                    const [year, month] = currentPayPeriod.value.split('-');
+                    const date = new Date(year, month - 1);
+                    return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                });
+
+                const formattedTimeRemaining = computed(() => {
+                    const m = Math.floor(timeRemaining.value / 60);
+                    const s = timeRemaining.value % 60;
+                    return `${m}:${s.toString().padStart(2, '0')}`;
+                });
+
+                const refreshIcons = () => {
+                    nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
+                };
+
+                const sortedEmployees = computed(() => {
+                    return employees.value
+                        .filter(emp => emp.sites && Array.isArray(emp.sites) && emp.sites.includes(activeSite.value))
+                        .sort((a, b) => {
+                            const lastCmp = a.lastName.localeCompare(b.lastName, undefined, { sensitivity: 'base' });
+                            if (lastCmp !== 0) return lastCmp;
+                            return a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' });
+                        });
+                });
+
+                const driverEmployees = computed(() => sortedEmployees.value.filter(e => e.isDriver));
+
+                const roundToQuarter = (num) => Math.round(num * 4) / 4;
+
+                const calculatedTips = computed(() => {
+                    return dailyData.value.map(day => {
+                        const pool = parseFloat(day?.pool) || 0;
+                        let totalHours = 0;
+                        sortedEmployees.value.forEach(emp => {
+                            if (!emp.isManager) totalHours += parseFloat(day?.hours?.[emp.id]) || 0;
+                        });
+                        const rate = totalHours > 0 ? pool / totalHours : 0;
+                        
+                        let totalDistributed = 0;
+                        const tips = {};
+                        sortedEmployees.value.forEach(emp => {
+                            const hrs = parseFloat(day?.hours?.[emp.id]) || 0;
+                            if (hrs > 0 && !emp.isManager) {
+                                const roundedTip = roundToQuarter(hrs * rate);
+                                tips[emp.id] = roundedTip;
+                                totalDistributed += roundedTip;
+                            } else {
+                                tips[emp.id] = 0;
+                            }
+                        });
+                        return { totalHours, rate, tips, totalDistributed, variance: pool > 0 ? (pool - totalDistributed) : 0 };
+                    });
+                });
+
+                const masterTotalTips = computed(() => dailyData.value.reduce((sum, day) => sum + (parseFloat(day.pool) || 0), 0));
+                const masterTotalDistributed = computed(() => calculatedTips.value.reduce((sum, day) => sum + day.totalDistributed, 0));
+                const masterTotalVariance = computed(() => masterTotalTips.value - masterTotalDistributed.value);
+
+                const monthlyStats = computed(() => {
+                    const finalPayouts = {};
+                    sortedEmployees.value.forEach(emp => {
+                        let empTotal = 0;
+                        dailyData.value.forEach((day, dayIndex) => {
+                            empTotal += calculatedTips.value[dayIndex]?.tips?.[emp.id] || 0;
+                            empTotal += parseFloat(day?.driverTips?.[emp.id]) || 0;
+                        });
+                        finalPayouts[emp.id] = empTotal;
+                    });
+                    return { finalPayouts };
+                });
+
+                const switchSite = async (site) => {
+                    if (activeSite.value === site) return;
+                    
+                    if (isManagerUnlocked.value && currentUserAccess.value.length > 0 && !currentUserAccess.value.includes(site)) {
+                        return showAlert(`Access Restricted: Your account does not have permission to access ${site}.`);
+                    }
+                    
+                    await saveState();
+                    activeSite.value = site;
+                    activeTab.value = 'master';
+                    localStorage.setItem('sundial-last-site', activeSite.value);
+                    loadSiteData();
+                };
+
+                const saveState = async () => {
+                    if (!isDbConnected.value || !auth.currentUser) return;
+                    const siteId = activeSite.value.replace(/\s+/g, '').toLowerCase();
+                    try {
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_sites', siteId), {
+                            dailyData: dailyData.value,
+                            numDays: numDays.value,
+                            currentPayPeriod: currentPayPeriod.value
+                        });
+                    } catch (e) { console.error("Firestore save error:", e); }
+                };
+
+                watch(employees, async () => {
+                    if (!isDbConnected.value || !auth.currentUser) return;
+                    try {
+                        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { employees: employees.value }, { merge: true });
+                    } catch (e) { console.error(e); }
+                }, { deep: true });
+
+                const toggleEmployeeSite = (emp, site) => {
+                    if (!emp.sites || !Array.isArray(emp.sites)) {
+                        emp.sites = ['Red Bluff', 'Redding'];
+                    }
+                    if (emp.sites.includes(site)) {
+                        if (emp.sites.length === 1) {
+                            return showAlert("An employee must belong to at least one store location.");
+                        }
+                        emp.sites = emp.sites.filter(s => s !== site);
+                    } else {
+                        emp.sites.push(site);
+                    }
+                    saveState();
+                };
+
+                const addEmployee = () => {
+                    if (!newEmp.value.first.trim() || !newEmp.value.last.trim()) return showAlert("Please enter both a first and last name.");
+                    
+                    const assignedSites = [];
+                    if (newEmp.value.siteRB) assignedSites.push('Red Bluff');
+                    if (newEmp.value.siteRD) assignedSites.push('Redding');
+                    
+                    if (assignedSites.length === 0) {
+                        return showAlert("Please select at least one store location.");
+                    }
+
+                    employees.value.push({
+                        id: 'emp_' + Date.now() + Math.random().toString(36).substring(2, 9),
+                        firstName: newEmp.value.first.trim(), 
+                        lastName: newEmp.value.last.trim(), 
+                        isDriver: newEmp.value.isDriver, 
+                        isManager: newEmp.value.isManager,
+                        tempId: newEmp.value.tempId ? newEmp.value.tempId.trim() : '',
+                        sites: assignedSites
+                    });
+                    newEmp.value = { first: '', last: '', tempId: '', isDriver: false, isManager: false, siteRB: true, siteRD: true };
+                };
+
+                const removeEmployee = (id) => {
+                    employees.value = employees.value.filter(e => e.id !== id);
+                };
+
+                const formatFirstName = (emp) => {
+                    if (emp.tempId) return emp.firstName + ' (' + emp.tempId + ')';
+                    return emp.firstName;
+                };
+
+                const formatCurrency = (val) => {
+                    if (!val || isNaN(val)) return '$ 0.00';
+                    return '$ ' + Math.abs(val).toFixed(2);
+                };
+
+                const formatCurrencyBlanks = (val) => {
+                    if (!val || val === 0) return '$  -';
+                    return formatCurrency(val);
+                };
+
+                const showAlert = (msg) => { modal.value = { isOpen: true, type: 'alert', message: msg, onConfirm: null }; refreshIcons(); };
+                const closeModal = () => { modal.value.isOpen = false; };
+                const confirmModal = () => { closeModal(); };
+
+                const loadSiteData = () => {
+                    if (unsubscribeSite) unsubscribeSite();
+                    const siteId = activeSite.value.replace(/\s+/g, '').toLowerCase();
+                    unsubscribeSite = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_sites', siteId), (docSnap) => {
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            dailyData.value = data.dailyData || createEmptyDailyData(31);
+                        } else {
+                            dailyData.value = createEmptyDailyData(31);
+                        }
+                        refreshIcons();
+                    });
+                };
+
+                onMounted(async () => {
+                    try {
+                        await signInAnonymously(auth);
+                        isDbConnected.value = true;
+                    } catch (e) { console.error("Auth failed:", e); }
+
+                    onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), (docSnap) => {
+                        if (docSnap.exists() && docSnap.data().employees) {
+                            employees.value = sanitizeEmployees(docSnap.data().employees);
+                        }
+                    });
+
+                    loadSiteData();
+                    refreshIcons();
+                });
+
+                return {
+                    isDbConnected, activeSite, switchSite, numDays, employees, sortedEmployees, driverEmployees, dailyData, activeTab,
+                    showEmployeeModal, showPermissionsModal, newEmp, monthlyStats, calculatedTips, masterTotalTips, masterTotalDistributed, masterTotalVariance,
+                    addEmployee, removeEmployee, toggleEmployeeSite, formatFirstName, formatCurrency, formatCurrencyBlanks,
+                    modal, closeModal, confirmModal, loggedInUser, isManagerUnlocked, currentUserAccess, hasPermissionAccess,
+                    formattedPayPeriod, timeRemaining, formattedTimeRemaining, refreshIcons
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>
