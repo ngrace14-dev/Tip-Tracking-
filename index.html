@@ -173,6 +173,7 @@
                         <i data-lucide="wand-2" class="w-4 h-4"></i> <span class="hidden xl:inline">Mock Data</span>
                     </button>
 
+                    <!-- DEV Nuke Data Tool -->
                     <button v-if="isDevUser" @click="nukeAllData" class="text-xs sm:text-sm bg-black hover:bg-gray-800 text-red-500 font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow border border-red-900/50 transition-colors" title="DEV MODE: Nuke all Active & Historical Data">
                         <i data-lucide="bomb" class="w-4 h-4"></i> <span class="hidden xl:inline">Nuke Data</span>
                     </button>
@@ -1734,6 +1735,10 @@
                 const handleLogin = () => {
                     let parsedPin = pinInput.value.trim();
                     
+                    if (parsedPin.length >= 8) {
+                        parsedPin = parsedPin.substring(parsedPin.length - 4);
+                    }
+
                     if (parsedPin.length === 8) {
                         const adminPin = parsedPin.substring(0, 4);
                         const personalPin = parsedPin.substring(4, 8);
@@ -1751,9 +1756,7 @@
                             refreshIcons();
                             return;
                         }
-                    }
-
-                    if (parsedPin.length === 4) {
+                    } else if (parsedPin.length === 4) {
                         const matchedUser = systemUsers.value[parsedPin];
                         if (matchedUser) {
                             if (matchedUser.personalPin) {
