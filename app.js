@@ -23,6 +23,27 @@ const createEmptyDailyData = (daysCount) => {
     return Array.from({ length: daysCount }, () => ({ pool: null, hours: {}, driverTips: {} }));
 };
 
+const sanitizeEmployees = (empList) => {
+    if (!Array.isArray(empList)) return [];
+    const reddingIds = new Set(['emp_0338', 'emp_1759', 'emp_2197', 'emp_8269', 'emp_1356', 'emp_5290', 'emp_8551', 'emp_1857', 'emp_4998', 'emp_9419', 'emp_3605', 'emp_1351', 'emp_3958', 'emp_5495', 'emp_0399', 'emp_0451', 'emp_1442', 'emp_7175', 'emp_2224', 'emp_6039', 'emp_0920', 'emp_1718', 'emp_6467', '0338', '1759', '2197', '8269', '1356', '5290', '8551', '1857', '4998', '9419', '3605', '1351', '3958', '5495', '0399', '0451', '1442', '7175', '2224', '6039', '0920', '1718', '6467']);
+    const redBluffIds = new Set(['emp_4668', 'emp_8746', 'emp_0305', 'emp_7497', 'emp_3657', 'emp_8201', 'emp_7529', 'emp_8367', 'emp_8786', 'emp_3031', 'emp_9902', 'emp_6369', 'emp_6607', 'emp_3813', 'emp_1522', 'emp_7470', 'emp_7312', 'emp_3373', 'emp_9055', '4668', '8746', '0305', '7497', '3657', '8201', '7529', '8367', '8786', '3031', '9902', '6369', '6607', '3813', '1522', '7470', '7312', '3373', '9055']);
+
+    return empList.map(emp => {
+        let sites = emp.sites;
+        if (!sites || !Array.isArray(sites) || sites.length === 0) {
+            const tempIdStr = String(emp.tempId || emp.id || '').trim();
+            if (reddingIds.has(emp.id) || reddingIds.has(tempIdStr)) {
+                sites = ['Redding'];
+            } else if (redBluffIds.has(emp.id) || redBluffIds.has(tempIdStr)) {
+                sites = ['Red Bluff'];
+            } else {
+                sites = ['Red Bluff', 'Redding'];
+            }
+        }
+        return { ...emp, sites };
+    });
+};
+
 const ensureThirtyOneDays = (dataArray) => {
     let arr = Array.isArray(dataArray) ? [...dataArray] : [];
     arr = arr.map(day => ({
@@ -1331,8 +1352,7 @@ const app = createApp({
         const sortedEmployees = computed(() => {
             return employees.value
                 .filter(emp => {
-                    // Fallback for legacy records without explicit site array
-                    if (!emp.sites || !Array.isArray(emp.sites) || emp.sites.length === 0) return true;
+                    if (!emp.sites || !Array.isArray(emp.sites) || emp.sites.length === 0) return false;
                     return emp.sites.includes(activeSite.value);
                 })
                 .sort((a, b) => {
@@ -1386,6 +1406,7 @@ const app = createApp({
             });
             return { finalPayouts };
         });
+
         const activeYearDisplayData = computed(() => {
             const year = selectedArchiveYear.value;
             const dataMap = {};
@@ -1436,25 +1457,6 @@ const app = createApp({
                 }
             }
             return dataMap;
-        });
-
-        const activeYearSummary = computed(() => {
-            let totalPool = 0;
-            let totalDistributed = 0;
-            let totalVariance = 0;
-            let archivedCount = 0;
-            const year = selectedArchiveYear.value;
-
-            for (let m = 1; m <= 12; m++) {
-                const mData = activeYearDisplayData.value[m];
-                if (yearlyArchives.value[year]?.[m]) {
-                    archivedCount++;
-                }
-                totalPool += parseFloat(mData.pool) || 0;
-                totalDistributed += parseFloat(mData.totalDistributed) || 0;
-                totalVariance += parseFloat(mData.variance) || 0;
-            }
-            return { totalPool, totalDistributed, totalVariance, archivedCount };
         });
 
         const activeYearEmployeeYTD = computed(() => {
@@ -1577,200 +1579,6 @@ const app = createApp({
             
             // 3. Load the target site's independent workspace
             loadSiteData();
-        };
-
-        const generateExcelWorkbook = () => {
-            const wb = XLSX.utils.book_new();
-
-            const masterData = [
-                [`RR Sundial ${activeSite.value} LLC`], [`Tip Tracker/Calculator - ${formattedPayPeriod.value}`], [],
-                ['Total Tip Pool (Sum of all days)', masterTotalTips.value], 
-                ['Total Distributed (After rounding)', masterTotalDistributed.value],
-                ['Rounding Variance', masterTotalVariance.value || 0], []
-            ];
-            
-            const mHeader = ['Last Name', 'First Name'];
-            for(let i=1; i<=numDays.value; i++) mHeader.push(`Day ${i}`);
-            mHeader.push('Final Total');
-            masterData.push(mHeader);
-
-            const poolRow = ['Daily Tip Pool (Locked) ->', ''];
-            for (let i = 0; i < numDays.value; i++) {
-                poolRow.push(dailyData.value[i]?.pool || 0);
-            }
-            poolRow.push('');
-            masterData.push(poolRow);
-
-            sortedEmployees.value.forEach(emp => {
-                const row = [emp.lastName, formatFirstName(emp)];
-                for(let i=0; i<numDays.value; i++) {
-                    const floorTip = calculatedTips.value[i]?.tips?.[emp.id] || 0;
-                    const driverTip = parseFloat(dailyData.value[i]?.driverTips?.[emp.id]) || 0;
-                    row.push(floorTip + driverTip);
-                }
-                row.push(monthlyStats.value.finalPayouts[emp.id] || 0);
-                masterData.push(row);
-            });
-            
-            masterData.push([]);
-            const mVarianceRow = ['Rounding Overage/Underage', ''];
-            for(let i=0; i<numDays.value; i++) mVarianceRow.push(calculatedTips.value[i]?.variance || 0);
-            mVarianceRow.push(masterTotalVariance.value || 0);
-            masterData.push(mVarianceRow);
-
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(masterData), 'Master');
-
-            for (let d = 1; d <= numDays.value; d++) {
-                const dayIndex = d - 1;
-                const dayDataObj = dailyData.value[dayIndex];
-                const dayCalcObj = calculatedTips.value[dayIndex];
-
-                const daySheetData = [
-                    [`RR Sundial ${activeSite.value} LLC - Day ${d}`],
-                    [`Total Amount of Tips`, dayDataObj?.pool || 0],
-                    [],
-                    ['Last Name', 'First Name', 'Hours Worked', 'Tip Distribution Amount']
-                ];
-
-                sortedEmployees.value.forEach(emp => {
-                    const empHours = parseFloat(dayDataObj?.hours?.[emp.id]) || 0;
-                    const empTip = parseFloat(dayCalcObj?.tips?.[emp.id]) || 0;
-                    daySheetData.push([emp.lastName, formatFirstName(emp), empHours, empTip]);
-                });
-
-                daySheetData.push([]);
-                daySheetData.push(['Tip-Eligible Totals:', '', dayCalcObj?.totalHours || 0, dayCalcObj?.totalDistributed || 0]);
-                daySheetData.push(['Verification Variance:', '', '', dayCalcObj?.variance || 0]);
-                
-                daySheetData.push([]);
-                daySheetData.push(['Driver Delivery Tips']);
-                daySheetData.push(['Driver Name', 'Direct Tip Amount']);
-
-                if (driverEmployees.value.length === 0) {
-                     daySheetData.push(['No drivers currently configured.']);
-                } else {
-                    driverEmployees.value.forEach(drv => {
-                        const directTip = parseFloat(dayDataObj?.driverTips?.[drv.id]) || 0;
-                        daySheetData.push([`${drv.lastName}, ${formatFirstName(drv)}`, directTip]);
-                    });
-                }
-
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(daySheetData), `Day ${d}`);
-            }
-            
-            return wb;
-        };
-
-        const exportToExcel = () => {
-            try {
-                const wb = generateExcelWorkbook();
-                const periodStr = formattedPayPeriod.value ? `_${formattedPayPeriod.value.replace(/\s+/g, '')}` : '';
-                const fileName = `Sundial_${activeSite.value.replace(/\s+/g, '_')}_Tips${periodStr}_${Date.now()}.xlsx`;
-                XLSX.writeFile(wb, fileName);
-                logAction("Exported Excel", `Exported active period data to ${fileName}`);
-            } catch (error) {
-                console.error(error);
-                showAlert('Error generating Excel file. Please try again.');
-            }
-        };
-
-        const generateCustomDateReport = () => {
-            if (!payrollStartDate.value || !payrollEndDate.value) {
-                return showAlert("Please select both a start date and an end date.");
-            }
-
-            try {
-                const dStart = new Date(payrollStartDate.value + 'T00:00:00');
-                const dEnd = new Date(payrollEndDate.value + 'T23:59:59');
-                
-                const wb = XLSX.utils.book_new();
-                const wsData = [
-                    [`RR Sundial ${activeSite.value} LLC - Payroll / Custom Date Report`], 
-                    ['Period:', dStart.toLocaleDateString(), 'to', dEnd.toLocaleDateString()], 
-                    []
-                ];
-                wsData.push(['Last Name', 'First Name', 'Total Hours', 'Total Tips ($)']);
-
-                const totals = {};
-                
-                const processMonthData = (year, mIdx, mData) => {
-                    if (!mData || !mData.dailyData) return;
-                    for (let d = 0; d < 31; d++) {
-                        const currentDay = new Date(year, mIdx - 1, d + 1, 12, 0, 0);
-                        if (currentDay.getMonth() !== mIdx - 1) continue; 
-
-                        if (currentDay >= dStart && currentDay <= dEnd) {
-                            const dayObj = mData.dailyData[d];
-                            const calcObj = mData.calculatedTips ? mData.calculatedTips[d] : null;
-                            
-                            if (dayObj && dayObj.hours) {
-                                Object.keys(dayObj.hours).forEach(empId => {
-                                    if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
-                                    totals[empId].hours += parseFloat(dayObj.hours[empId]) || 0;
-                                });
-                            }
-                            if (calcObj && calcObj.tips) {
-                                Object.keys(calcObj.tips).forEach(empId => {
-                                    if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
-                                    totals[empId].tips += parseFloat(calcObj.tips[empId]) || 0;
-                                });
-                            }
-                            if (dayObj && dayObj.driverTips) {
-                                Object.keys(dayObj.driverTips).forEach(empId => {
-                                    if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
-                                    totals[empId].tips += parseFloat(dayObj.driverTips[empId]) || 0;
-                                });
-                            }
-                        }
-                    }
-                };
-
-                if (yearlyArchives.value) {
-                    for (const year in yearlyArchives.value) {
-                        for (const mIdx in yearlyArchives.value[year]) {
-                            processMonthData(parseInt(year), parseInt(mIdx), yearlyArchives.value[year][mIdx]);
-                        }
-                    }
-                }
-
-                if (currentPayPeriod.value) {
-                    const [currYr, currM] = currentPayPeriod.value.split('-');
-                    processMonthData(parseInt(currYr), parseInt(currM), {
-                        dailyData: dailyData.value,
-                        calculatedTips: calculatedTips.value
-                    });
-                }
-
-                let hasData = false;
-                employees.value.forEach(emp => {
-                    const t = totals[emp.id];
-                    if (t && (t.hours > 0 || t.tips > 0)) {
-                        wsData.push([emp.lastName, formatFirstName(emp), Math.round(t.hours * 100) / 100, Math.round(t.tips * 100) / 100]);
-                        hasData = true;
-                    }
-                });
-
-                if (!hasData) {
-                    return showAlert('No recorded hours or tips found in the ledger for the selected dates.');
-                }
-
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Payroll Report');
-                XLSX.writeFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_DateRange_Report.xlsx`);
-                
-                logAction('Exported Custom Report', `Exported date range report from ${payrollStartDate.value} to ${payrollEndDate.value}`);
-                showPayrollModal.value = false;
-            } catch(err) {
-                console.error(err);
-                showAlert('Error generating report: ' + err.message);
-            }
-        };
-
-        const clearData = () => {
-            showConfirm(`Are you sure you want to delete all hours and tips for ${activeSite.value}? (Your shared employee roster will be saved).`, () => {
-                dailyData.value = createEmptyDailyData(numDays.value);
-                logAction("Reset Pay Period", `Cleared all daily input values for ${activeSite.value}.`);
-                saveState();
-            });
         };
 
         const addEmployee = () => {
@@ -2008,7 +1816,7 @@ const app = createApp({
                     const data = docSnap.data();
                     if (data.systemUsers) systemUsers.value = data.systemUsers;
                     if (data.extensions) extensions.value = data.extensions;
-                    if (data.employees) employees.value = data.employees;
+                    if (data.employees) employees.value = sanitizeEmployees(data.employees);
                 } else {
                     const defaultInitialEmployees = [
                         // Redding Rancheria Sundial LLC Roster
