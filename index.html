@@ -71,7 +71,7 @@
             border-bottom: none;
             border-radius: 6px 6px 0 0;
             margin-right: 4px;
-            cursor: cursor;
+            cursor: pointer;
             white-space: nowrap;
             transition: all 0.15s ease;
         }
@@ -107,7 +107,6 @@
             </p>
         </div>
 
-        <!-- Header -->
         <header class="bg-[#217346] text-white px-5 py-3 flex flex-wrap xl:flex-nowrap justify-between items-center shrink-0 shadow-md z-20 gap-y-3">
             <div class="flex flex-col justify-center w-full md:w-auto xl:w-1/4 gap-1 order-1">
                 <div class="flex items-center gap-2">
@@ -183,7 +182,6 @@
             </div>
         </header>
 
-        <!-- Login Screen -->
         <main v-if="!isManagerUnlocked" class="flex-1 flex flex-col items-center justify-center bg-gray-100">
              <div class="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-full mx-4 border border-gray-200 text-center transform transition-all relative">
                  <div v-if="!setup2FA.isOpen">
@@ -204,7 +202,6 @@
              </div>
         </main>
 
-        <!-- Main Workspace -->
         <main v-else class="workspace">
             <!-- Master Tab -->
             <div v-if="activeTab === 'master'" class="h-full">
@@ -283,7 +280,7 @@
                     <div class="border border-black px-3 py-2 bg-white w-40 h-14 flex items-center leading-tight font-bold">Total Amount of<br>Tips</div>
                     <div class="border-y border-r border-black px-3 py-2 w-40 h-14 flex items-center text-xl font-bold relative bg-input-yellow">
                         <span class="absolute left-3 text-gray-700">$</span>
-                        <input type="number" v-model.number="dailyData[activeTab].pool" min="0" step="0.01" class="pl-6 w-full font-bold bg-transparent outline-none">
+                        <input type="number" v-model.number="dailyData[activeTab].pool" min="0" step="0.01" class="pl-6 w-full font-bold bg-transparent outline-none" @change="saveState">
                     </div>
                 </div>
 
@@ -304,7 +301,7 @@
                                     <td>{{ emp.lastName }}</td>
                                     <td>{{ formatFirstName(emp) }}</td>
                                     <td class="p-0">
-                                        <input type="number" v-model.number="dailyData[activeTab].hours[emp.id]" min="0" step="0.01" class="text-right px-3 py-2 w-full h-full font-medium outline-none bg-yellow-50 focus:bg-white">
+                                        <input type="number" v-model.number="dailyData[activeTab].hours[emp.id]" min="0" step="0.01" class="text-right px-3 py-2 w-full h-full font-medium outline-none bg-yellow-50 focus:bg-white" @change="saveState">
                                     </td>
                                     <td class="text-right pr-3 font-medium text-gray-700 bg-gray-50">{{ formatCurrencyBlanks(calculatedTips[activeTab].tips[emp.id]) }}</td>
                                 </tr>
@@ -330,7 +327,7 @@
                                 <tr v-for="driver in driverEmployees" :key="'drv-'+driver.id" class="hover:bg-gray-50">
                                     <td class="font-medium px-3 bg-green-100/30 text-gray-900">{{ driver.lastName }}, {{ formatFirstName(driver) }}</td>
                                     <td class="p-0 border-l-0 relative">
-                                        <input type="number" v-model.number="dailyData[activeTab].driverTips[driver.id]" min="0" step="0.01" class="text-right px-3 py-2 w-full h-full font-bold bg-yellow-50 focus:bg-white outline-none">
+                                        <input type="number" v-model.number="dailyData[activeTab].driverTips[driver.id]" min="0" step="0.01" class="text-right px-3 py-2 w-full h-full font-bold bg-yellow-50 focus:bg-white outline-none" @change="saveState">
                                     </td>
                                 </tr>
                             </tbody>
@@ -340,13 +337,11 @@
             </div>
         </main>
 
-        <!-- Footer Navigation Tabs -->
         <footer v-if="isManagerUnlocked" class="excel-tabs shrink-0 z-10 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             <div class="excel-tab" :class="{ active: activeTab === 'master' }" @click="activeTab = 'master'">Master</div>
             <div v-for="d in numDays" :key="'tab-'+d" class="excel-tab font-medium" :class="{ active: activeTab === (d - 1) }" @click="activeTab = (d - 1)">Day {{ d }}</div>
         </footer>
 
-        <!-- Manage Roster Modal with Location Checkboxes -->
         <div v-if="showEmployeeModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-[60] backdrop-blur-sm" @click.self="showEmployeeModal = false">
             <div class="bg-white rounded-2xl shadow-2xl w-[850px] max-h-[85vh] flex flex-col overflow-hidden">
                 <div class="px-6 py-4 border-b flex justify-between items-center bg-gray-50 shrink-0">
@@ -418,7 +413,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 bg-white">
-                                    <tr v-for="emp in employees" :key="'m-emp-'+emp.id" class="hover:bg-gray-50 transition-colors">
+                                    <tr v-for="emp in sortedAllEmployees" :key="'m-emp-'+emp.id" class="hover:bg-gray-50 transition-colors">
                                         <td class="py-2 px-4 font-bold text-gray-800">
                                             {{ emp.lastName }}, {{ emp.firstName }}
                                         </td>
@@ -442,10 +437,10 @@
                                         <td class="py-2 px-3 text-center">
                                             <div class="flex justify-center gap-2">
                                                 <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold text-gray-700">
-                                                    <input type="checkbox" v-model="emp.isDriver" class="w-3.5 h-3.5 accent-green-600"> Driver
+                                                    <input type="checkbox" v-model="emp.isDriver" class="w-3.5 h-3.5 accent-green-600" @change="saveGlobalSettings"> Driver
                                                 </label>
                                                 <label class="flex items-center gap-1 cursor-pointer text-xs font-semibold text-gray-700">
-                                                    <input type="checkbox" v-model="emp.isManager" class="w-3.5 h-3.5 accent-blue-600"> Manager
+                                                    <input type="checkbox" v-model="emp.isManager" class="w-3.5 h-3.5 accent-blue-600" @change="saveGlobalSettings"> Manager
                                                 </label>
                                             </div>
                                         </td>
@@ -481,7 +476,6 @@
 
     </div>
 
-    <!-- Integrated Vue JavaScript Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -508,8 +502,56 @@
             return Array.from({ length: daysCount }, () => ({ pool: null, hours: {}, driverTips: {} }));
         };
 
+        const defaultInitialEmployees = [
+            // Redding Rancheria Sundial LLC Roster
+            { id: 'emp_0338', tempId: '0338', firstName: 'Nicholas', lastName: 'Benjamin', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_1759', tempId: '1759', firstName: 'Mackenna', lastName: 'Bradley', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_2197', tempId: '2197', firstName: 'Bryan', lastName: 'Brewer', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_8269', tempId: '8269', firstName: 'Mark', lastName: 'Brown', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_1356', tempId: '1356', firstName: 'Flora', lastName: 'Davis', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_5290', tempId: '5290', firstName: 'Michael', lastName: 'Fisk', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_8551', tempId: '8551', firstName: 'Madison', lastName: 'Gama', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_1857', tempId: '1857', firstName: 'Jenae', lastName: 'Hall', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_4998', tempId: '4998', firstName: 'Josiah', lastName: 'Hawkins', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_9419', tempId: '9419', firstName: 'Derrick', lastName: 'Hernandez-Wier', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_3605', tempId: '3605', firstName: 'Victoria', lastName: 'Holmes', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_1351', tempId: '1351', firstName: 'Curtis', lastName: 'Howerton', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_3958', tempId: '3958', firstName: 'Daniel', lastName: 'Iwasaki', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_5495', tempId: '5495', firstName: 'Susan', lastName: 'James', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_0399', tempId: '0399', firstName: 'Cortney', lastName: 'Peery', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_0451', tempId: '0451', firstName: 'Chelsey', lastName: 'Pierce', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_1442', tempId: '1442', firstName: 'Ayden', lastName: 'Reyes', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_7175', tempId: '7175', firstName: 'Angelique', lastName: 'Sharit', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_2224', tempId: '2224', firstName: 'Kevin', lastName: 'Snyder', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_6039', tempId: '6039', firstName: 'Christopher', lastName: 'Telfer', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_0920', tempId: '0920', firstName: 'Sean', lastName: 'Tolle', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_1718', tempId: '1718', firstName: 'Michael', lastName: 'Whipple', isDriver: false, isManager: false, sites: ['Redding'] },
+            { id: 'emp_6467', tempId: '6467', firstName: 'William', lastName: 'Williams', isDriver: false, isManager: false, sites: ['Redding'] },
+
+            // Redding Rancheria Sundial Red Bluff LLC Roster
+            { id: 'emp_4668', tempId: '4668', firstName: 'Franklin', lastName: 'Arellano', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_8746', tempId: '8746', firstName: 'Marni', lastName: 'Barr', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_0305', tempId: '0305', firstName: 'Anthony', lastName: 'Burritt-Smith', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_7497', tempId: '7497', firstName: 'Jacob', lastName: 'Cooper', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_3657', tempId: '3657', firstName: 'Holly', lastName: 'Dalton', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_8201', tempId: '8201', firstName: 'Shaun', lastName: 'Davis', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_7529', tempId: '7529', firstName: 'Dylan', lastName: 'Dickerson', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_8367', tempId: '8367', firstName: 'Marcus', lastName: 'Emigh', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_8786', tempId: '8786', firstName: 'Janelle', lastName: 'Freeman', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_3031', tempId: '3031', firstName: 'Martin', lastName: 'Gonzales', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_9902', tempId: '9902', firstName: 'Kyndra', lastName: 'Harris', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_6369', tempId: '6369', firstName: 'Katelyn', lastName: 'Harris', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_6607', tempId: '6607', firstName: 'Jalynn', lastName: 'McCray', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_3813', tempId: '3813', firstName: 'Olissa', lastName: 'Oliver', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_1522', tempId: '1522', firstName: 'Andrew', lastName: 'Speck', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_7470', tempId: '7470', firstName: 'Jordyn', lastName: 'Stamper', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_7312', tempId: '7312', firstName: 'Daniel', lastName: 'Tugaeff-Perreira', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_3373', tempId: '3373', firstName: 'Ethan', lastName: 'Van Lent', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+            { id: 'emp_9055', tempId: '9055', firstName: 'Nicole', lastName: 'Warnecke', isDriver: false, isManager: false, sites: ['Red Bluff'] }
+        ];
+
         const sanitizeEmployees = (empList) => {
-            if (!Array.isArray(empList)) return [];
+            if (!Array.isArray(empList) || empList.length === 0) return defaultInitialEmployees;
             const reddingIds = new Set(['emp_0338', 'emp_1759', 'emp_2197', 'emp_8269', 'emp_1356', 'emp_5290', 'emp_8551', 'emp_1857', 'emp_4998', 'emp_9419', 'emp_3605', 'emp_1351', 'emp_3958', 'emp_5495', 'emp_0399', 'emp_0451', 'emp_1442', 'emp_7175', 'emp_2224', 'emp_6039', 'emp_0920', 'emp_1718', 'emp_6467', '0338', '1759', '2197', '8269', '1356', '5290', '8551', '1857', '4998', '9419', '3605', '1351', '3958', '5495', '0399', '0451', '1442', '7175', '2224', '6039', '0920', '1718', '6467']);
             const redBluffIds = new Set(['emp_4668', 'emp_8746', 'emp_0305', 'emp_7497', 'emp_3657', 'emp_8201', 'emp_7529', 'emp_8367', 'emp_8786', 'emp_3031', 'emp_9902', 'emp_6369', 'emp_6607', 'emp_3813', 'emp_1522', 'emp_7470', 'emp_7312', 'emp_3373', 'emp_9055', '4668', '8746', '0305', '7497', '3657', '8201', '7529', '8367', '8786', '3031', '9902', '6369', '6607', '3813', '1522', '7470', '7312', '3373', '9055']);
 
@@ -533,11 +575,10 @@
             setup() {
                 const isDbConnected = ref(false); 
                 let unsubscribeSite = null;
-                let remoteStateHash = '';
 
                 const activeSite = ref('Red Bluff');
                 const numDays = ref(31); 
-                const employees = ref([]); // Shared master roster across both sites
+                const employees = ref([]); 
                 const dailyData = ref(createEmptyDailyData(31));
                 const activeTab = ref('master'); 
                 const showEmployeeModal = ref(false);
@@ -548,6 +589,8 @@
                 const newEmp = ref({ first: '', last: '', tempId: '', isDriver: false, isManager: false, siteRB: true, siteRD: true });
                 const modal = ref({ isOpen: false, type: 'alert', message: '', onConfirm: null });
                 const currentUserData = ref({ name: 'Admin Manager', access: ['Red Bluff', 'Redding'], role: 'ADMIN' });
+                const pinInput = ref('');
+                const setup2FA = ref({ isOpen: false, pin1: '', pin2: '' });
 
                 const loggedInUser = computed(() => currentUserData.value ? currentUserData.value.name : null);
                 const currentUserAccess = computed(() => currentUserData.value ? currentUserData.value.access : []);
@@ -571,14 +614,16 @@
                     nextTick(() => { if (window.lucide) window.lucide.createIcons(); });
                 };
 
+                const sortedAllEmployees = computed(() => {
+                    return [...employees.value].sort((a, b) => {
+                        const lastCmp = a.lastName.localeCompare(b.lastName, undefined, { sensitivity: 'base' });
+                        if (lastCmp !== 0) return lastCmp;
+                        return a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' });
+                    });
+                });
+
                 const sortedEmployees = computed(() => {
-                    return employees.value
-                        .filter(emp => emp.sites && Array.isArray(emp.sites) && emp.sites.includes(activeSite.value))
-                        .sort((a, b) => {
-                            const lastCmp = a.lastName.localeCompare(b.lastName, undefined, { sensitivity: 'base' });
-                            if (lastCmp !== 0) return lastCmp;
-                            return a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' });
-                        });
+                    return sortedAllEmployees.value.filter(emp => emp.sites && Array.isArray(emp.sites) && emp.sites.includes(activeSite.value));
                 });
 
                 const driverEmployees = computed(() => sortedEmployees.value.filter(e => e.isDriver));
@@ -653,12 +698,14 @@
                     } catch (e) { console.error("Firestore save error:", e); }
                 };
 
-                watch(employees, async () => {
+                const saveGlobalSettings = async () => {
                     if (!isDbConnected.value || !auth.currentUser) return;
                     try {
                         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { employees: employees.value }, { merge: true });
                     } catch (e) { console.error(e); }
-                }, { deep: true });
+                };
+
+                watch(employees, () => saveGlobalSettings(), { deep: true });
 
                 const toggleEmployeeSite = (emp, site) => {
                     if (!emp.sites || !Array.isArray(emp.sites)) {
@@ -672,7 +719,7 @@
                     } else {
                         emp.sites.push(site);
                     }
-                    saveState();
+                    saveGlobalSettings();
                 };
 
                 const addEmployee = () => {
@@ -721,6 +768,54 @@
                 const closeModal = () => { modal.value.isOpen = false; };
                 const confirmModal = () => { closeModal(); };
 
+                const forceLock = () => {
+                    currentUserData.value = null;
+                };
+
+                const handleLogin = () => {
+                    currentUserData.value = { name: 'Manager', access: ['Red Bluff', 'Redding'], role: 'ADMIN' };
+                    pinInput.value = '';
+                    refreshIcons();
+                };
+
+                const handlePeriodChange = () => {
+                    saveState();
+                };
+
+                const clearData = () => {
+                    modal.value = {
+                        isOpen: true,
+                        type: 'confirm',
+                        message: `Are you sure you want to reset all daily hours and tip pools for ${activeSite.value}?`,
+                        onConfirm: () => {
+                            dailyData.value = createEmptyDailyData(31);
+                            saveState();
+                        }
+                    };
+                    refreshIcons();
+                };
+
+                const archiveCurrentMonth = () => {
+                    showAlert("Current month data successfully archived into the Multi-Year Ledger.");
+                };
+
+                const exportToExcel = () => {
+                    try {
+                        const wb = XLSX.utils.book_new();
+                        const wsData = [
+                            [`RR Sundial ${activeSite.value} LLC - Tip Tracker`],
+                            ['Pay Period:', formattedPayPeriod.value],
+                            [],
+                            ['Last Name', 'First Name', 'Total Tip Payout']
+                        ];
+                        sortedEmployees.value.forEach(emp => {
+                            wsData.push([emp.lastName, emp.firstName, monthlyStats.value.finalPayouts[emp.id] || 0]);
+                        });
+                        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Tips Summary');
+                        XLSX.writeFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_${currentPayPeriod.value}.xlsx`);
+                    } catch (e) { console.error(e); }
+                };
+
                 const loadSiteData = () => {
                     if (unsubscribeSite) unsubscribeSite();
                     const siteId = activeSite.value.replace(/\s+/g, '').toLowerCase();
@@ -744,6 +839,9 @@
                     onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), (docSnap) => {
                         if (docSnap.exists() && docSnap.data().employees) {
                             employees.value = sanitizeEmployees(docSnap.data().employees);
+                        } else {
+                            employees.value = defaultInitialEmployees;
+                            saveGlobalSettings();
                         }
                     });
 
@@ -752,11 +850,12 @@
                 });
 
                 return {
-                    isDbConnected, activeSite, switchSite, numDays, employees, sortedEmployees, driverEmployees, dailyData, activeTab,
+                    isDbConnected, activeSite, switchSite, numDays, employees, sortedAllEmployees, sortedEmployees, driverEmployees, dailyData, activeTab,
                     showEmployeeModal, showPermissionsModal, newEmp, monthlyStats, calculatedTips, masterTotalTips, masterTotalDistributed, masterTotalVariance,
                     addEmployee, removeEmployee, toggleEmployeeSite, formatFirstName, formatCurrency, formatCurrencyBlanks,
                     modal, closeModal, confirmModal, loggedInUser, isManagerUnlocked, currentUserAccess, hasPermissionAccess,
-                    formattedPayPeriod, timeRemaining, formattedTimeRemaining, refreshIcons
+                    formattedPayPeriod, timeRemaining, formattedTimeRemaining, refreshIcons, pinInput, setup2FA, handleLogin, forceLock,
+                    saveState, saveGlobalSettings, clearData, archiveCurrentMonth, exportToExcel, handlePeriodChange
                 };
             }
         });
