@@ -1839,15 +1839,28 @@
                 };
 
                 const generateMockData = () => {
-                    dailyData.value.forEach(day => {
+                    // Create a completely fresh array to trigger Vue's reactivity
+                    const newMockData = createEmptyDailyData(31);
+                    
+                    newMockData.forEach(day => {
                         day.pool = Math.floor(Math.random() * 500) + 200;
                         sortedEmployees.value.forEach(emp => {
-                            day.hours[emp.id] = Math.floor(Math.random() * 8) + 1;
+                            // Don't give managers floor hours to keep tip math realistic
+                            if (!emp.isManager) {
+                                day.hours[emp.id] = Math.floor(Math.random() * 8) + 1;
+                            }
+                            // Give drivers some random direct delivery tips
+                            if (emp.isDriver) {
+                                day.driverTips[emp.id] = Math.floor(Math.random() * 30) + 5;
+                            }
                         });
                     });
+                    
+                    // Reassign the main variable to force the UI and database to update
+                    dailyData.value = newMockData;
                     saveState();
                     pushHistory();
-                    showAlert("Generated 31 days of mock data!");
+                    showAlert("Generated 31 days of realistic mock data!");
                 };
 
                 const logAction = (action, details) => {
