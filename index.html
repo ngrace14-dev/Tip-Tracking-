@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RREDCO Tip Tracker (Cloud Sync)</title>
     
-    <!-- External CDN Dependencies -->
+    <!-- External Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -182,6 +182,7 @@
             </div>
         </header>
 
+        <!-- Main Workspace -->
         <main v-if="!isManagerUnlocked" class="flex-1 flex flex-col items-center justify-center bg-gray-100">
              <div class="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-full mx-4 border border-gray-200 text-center transform transition-all relative">
                  <div v-if="!setup2FA.isOpen">
@@ -203,8 +204,246 @@
         </main>
 
         <main v-else class="workspace">
-            <!-- Master Tab -->
-            <div v-if="activeTab === 'master'" class="h-full">
+            <div v-if="activeTab === 'multiyear'" class="h-full overflow-y-auto pr-2">
+                <div class="mb-6 flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                        <div class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <i data-lucide="calendar-range" class="w-6 h-6 text-[#217346]"></i>
+                            RR Sundial {{ activeSite }} LLC - Multi-Year Master Ledger
+                        </div>
+                        <div class="text-sm text-gray-600 mt-0.5">Stacked 12-month historical ledger with full 31-day daily breakdowns per month.</div>
+                    </div>
+
+                    <div class="flex items-center bg-gray-200 p-1 rounded-xl shadow-inner border border-gray-300">
+                        <button v-for="yr in availableArchiveYears" :key="'yr-tab-'+yr" 
+                                @click="selectedArchiveYear = yr" 
+                                :class="selectedArchiveYear === yr ? 'bg-[#217346] text-white shadow font-bold' : 'text-gray-700 hover:text-black font-semibold'"
+                                class="px-4 py-1.5 rounded-lg text-sm transition-all">
+                            {{ yr }}
+                        </button>
+                        <button @click="addNewYearTab" class="px-3 py-1.5 text-xs text-gray-600 hover:text-green-700 font-bold flex items-center gap-1" title="Add New Year Tab">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Year
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-6 mb-6 bg-gray-50 p-4 rounded-xl border shadow-sm">
+                    <div class="flex items-center shadow-sm rounded-lg overflow-hidden border border-black">
+                        <div class="px-4 py-2 bg-[#217346] text-white w-48 h-14 flex items-center leading-tight font-bold text-sm">Annual Tip Pool<br>({{ selectedArchiveYear }})</div>
+                        <div class="px-4 py-2 bg-gray-100 w-36 h-14 flex items-center font-bold text-xl text-gray-800 border-l border-black">
+                            {{ formatCurrency(activeYearSummary.totalPool) }}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center shadow-sm rounded-lg overflow-hidden border border-black">
+                        <div class="px-4 py-2 bg-white text-black w-48 h-14 flex items-center leading-tight font-bold text-sm">Annual Distributed<br>({{ selectedArchiveYear }})</div>
+                        <div class="px-4 py-2 bg-white w-36 h-14 flex items-center font-bold text-xl border-l border-black">
+                            {{ formatCurrency(activeYearSummary.totalDistributed) }}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center shadow-sm rounded-lg overflow-hidden border border-black">
+                        <div class="px-4 py-2 bg-white w-48 h-14 flex items-center leading-tight font-medium text-sm">Rounding Variance<br>(Annual Over/Under)</div>
+                        <div class="px-4 py-2 w-36 h-14 flex items-center font-bold text-xl border-l border-black" :class="activeYearSummary.totalVariance > 0 ? 'text-green-600 bg-green-50' : (activeYearSummary.totalVariance < 0 ? 'text-red-600 bg-red-50' : 'text-gray-700')">
+                            {{ formatCurrency(activeYearSummary.totalVariance, true) }}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center shadow-sm rounded-lg overflow-hidden border border-black">
+                        <div class="px-4 py-2 bg-amber-500 text-white w-44 h-14 flex items-center leading-tight font-bold text-sm">Archived Months</div>
+                        <div class="px-4 py-2 bg-amber-50 w-24 h-14 flex items-center justify-center font-bold text-xl text-amber-900 border-l border-black">
+                            {{ activeYearSummary.archivedCount }} / 12
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap justify-between items-center gap-3 mb-4 bg-white p-3 rounded-xl border shadow-sm sticky top-0 z-20">
+                    <div class="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
+                        <span class="text-xs font-bold text-gray-500 uppercase mr-1 shrink-0">Jump To:</span>
+                        <button v-for="mIdx in 12" :key="'jump-'+mIdx" 
+                                @click="scrollToMonth(mIdx)" 
+                                class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all border flex items-center gap-1 shrink-0"
+                                :class="yearlyArchives[selectedArchiveYear]?.[mIdx] ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200' : (isCurrentPayPeriodMonth(mIdx) ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200')">
+                            <span class="w-2 h-2 rounded-full" :class="yearlyArchives[selectedArchiveYear]?.[mIdx] ? 'bg-green-600' : (isCurrentPayPeriodMonth(mIdx) ? 'bg-blue-600' : 'bg-gray-400')"></span>
+                            {{ getMonthName(mIdx) }}
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="flex items-center bg-gray-200 p-1 rounded-lg shadow-inner border border-gray-300">
+                            <button @click="multiYearDisplayMode = 'tips'" :class="{'bg-white shadow border-gray-300 text-black': multiYearDisplayMode === 'tips', 'text-gray-500 hover:text-gray-700': multiYearDisplayMode !== 'tips'}" class="px-4 py-1 rounded-md text-xs font-bold transition-all">View Tips ($)</button>
+                            <button @click="multiYearDisplayMode = 'hours'" :class="{'bg-white shadow border-gray-300 text-black': multiYearDisplayMode === 'hours', 'text-gray-500 hover:text-gray-700': multiYearDisplayMode !== 'hours'}" class="px-4 py-1 rounded-md text-xs font-bold transition-all">View Hours (h)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- YTD Summary Matrix -->
+                <div class="mb-8 bg-white rounded-xl border border-gray-300 shadow-md p-4">
+                    <div class="font-bold text-lg text-gray-900 mb-2 flex items-center justify-between">
+                        <span class="flex items-center gap-2"><i data-lucide="trophy" class="w-5 h-5 text-amber-500"></i> {{ selectedArchiveYear }} Annual YTD Summary Matrix</span>
+                        <span class="text-xs text-gray-500 font-normal">Annual totals per employee across all months</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="excel-table shadow-sm">
+                            <thead>
+                                <tr>
+                                    <th class="w-40 text-left font-bold py-2 bg-gray-100">Last Name</th>
+                                    <th class="w-40 text-left font-bold py-2 bg-gray-100">First Name</th>
+                                    <th v-for="mIdx in 12" :key="'ytd-th-'+mIdx" class="w-20 text-center font-bold bg-gray-100">{{ getMonthName(mIdx) }}</th>
+                                    <th class="w-28 text-center bg-green-100 font-bold border-l-2 border-black">YTD Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="bg-gray-100 border-b-2 border-black">
+                                    <td colspan="2" class="text-right font-bold pr-3 text-xs uppercase text-gray-600">Monthly Tip Pool &rarr;</td>
+                                    <td v-for="mIdx in 12" :key="'ytd-pool-'+mIdx" class="text-right px-2 py-1 font-bold text-xs bg-gray-100">
+                                        {{ formatCurrencyBlanks(activeYearDisplayData[mIdx]?.pool) }}
+                                    </td>
+                                    <td class="text-right bg-green-100 border-l-2 border-black font-bold text-green-900 px-2 text-xs">
+                                        {{ formatCurrencyBlanks(activeYearSummary.totalPool) }}
+                                    </td>
+                                </tr>
+                                <tr v-for="emp in sortedEmployees" :key="'ytd-emp-'+emp.id" class="hover:bg-gray-50">
+                                    <td :class="emp.isManager ? 'bg-blue-50/70 font-semibold text-blue-900' : (emp.isDriver ? 'bg-green-100/60 font-semibold text-green-900' : '')">{{ emp.lastName }}</td>
+                                    <td :class="emp.isManager ? 'bg-blue-50/70 font-semibold text-blue-900' : (emp.isDriver ? 'bg-green-100/60 font-semibold text-green-900' : '')">{{ formatFirstName(emp) }}</td>
+                                    <td v-for="mIdx in 12" :key="'ytd-td-'+emp.id+'-'+mIdx" class="text-right px-2 py-1 text-xs">
+                                        <template v-if="multiYearDisplayMode === 'tips'">
+                                            {{ formatCurrencyBlanks(activeYearDisplayData[mIdx]?.payouts?.[emp.id]) }}
+                                        </template>
+                                        <template v-else>
+                                            {{ activeYearDisplayData[mIdx]?.hours?.[emp.id] || '-' }}
+                                        </template>
+                                    </td>
+                                    <td class="text-right bg-green-50 border-l-2 border-black font-bold text-green-900 px-2 text-xs">
+                                        <template v-if="multiYearDisplayMode === 'tips'">
+                                            {{ formatCurrencyBlanks(activeYearEmployeeYTD[emp.id]?.tips) }}
+                                        </template>
+                                        <template v-else>
+                                            {{ (activeYearEmployeeYTD[emp.id]?.hours || 0).toFixed(1) }} h
+                                        </template>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="space-y-8 pb-12">
+                    <div v-for="mIdx in 12" :key="'stacked-m-'+mIdx" :id="'month-section-' + mIdx" class="bg-white rounded-xl border border-gray-300 shadow-md overflow-hidden scroll-mt-20">
+                        
+                        <div class="px-5 py-3 border-b flex flex-wrap justify-between items-center gap-3"
+                             :class="yearlyArchives[selectedArchiveYear]?.[mIdx] ? 'bg-[#217346] text-white' : (isCurrentPayPeriodMonth(mIdx) ? 'bg-blue-700 text-white' : 'bg-gray-100 text-gray-800')">
+                            
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
+                                     :class="yearlyArchives[selectedArchiveYear]?.[mIdx] ? 'bg-white/20 text-white' : (isCurrentPayPeriodMonth(mIdx) ? 'bg-white/20 text-white' : 'bg-gray-300 text-gray-700')">
+                                    {{ mIdx }}
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg leading-tight">{{ getMonthName(mIdx) }} {{ selectedArchiveYear }}</h3>
+                                    <span class="text-xs font-medium opacity-90">
+                                        <template v-if="yearlyArchives[selectedArchiveYear]?.[mIdx]">
+                                            Archived Snapshot &bull; {{ new Date(yearlyArchives[selectedArchiveYear][mIdx].archivedAt).toLocaleDateString() }}
+                                        </template>
+                                        <template v-else-if="isCurrentPayPeriodMonth(mIdx)">
+                                            Active Pay Period &bull; Live Editing
+                                        </template>
+                                        <template v-else>
+                                            Unarchived / Pending Month
+                                        </template>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-4 text-xs font-bold">
+                                <div class="bg-black/20 px-3 py-1 rounded border border-white/20 flex items-center gap-1.5">
+                                    <span>Tip Pool:</span>
+                                    <span class="text-sm font-extrabold">{{ formatCurrency(activeYearDisplayData[mIdx]?.pool) }}</span>
+                                </div>
+                                <div class="bg-black/20 px-3 py-1 rounded border border-white/20 flex items-center gap-1.5">
+                                    <span>Distributed:</span>
+                                    <span class="text-sm font-extrabold">{{ formatCurrency(activeYearDisplayData[mIdx]?.totalDistributed) }}</span>
+                                </div>
+                                <div class="bg-black/20 px-3 py-1 rounded border border-white/20 flex items-center gap-1.5">
+                                    <span>Variance:</span>
+                                    <span class="text-sm font-extrabold" :class="activeYearDisplayData[mIdx]?.variance > 0 ? 'text-green-300' : (activeYearDisplayData[mIdx]?.variance < 0 ? 'text-red-300' : '')">
+                                        {{ formatCurrency(activeYearDisplayData[mIdx]?.variance, true) }}
+                                    </span>
+                                </div>
+                                
+                                <button v-if="isCurrentPayPeriodMonth(mIdx) && !yearlyArchives[selectedArchiveYear]?.[mIdx]" 
+                                        @click="archiveCurrentMonth" 
+                                        class="bg-amber-500 hover:bg-amber-600 text-black font-extrabold px-3 py-1 rounded shadow text-xs transition-colors flex items-center gap-1">
+                                    <i data-lucide="archive" class="w-3.5 h-3.5"></i> Archive Month
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="p-4 overflow-x-auto">
+                            <table class="excel-table shadow-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="w-36 text-left font-bold py-2 bg-gray-100">Last Name</th>
+                                        <th class="w-36 text-left font-bold py-2 bg-gray-100">First Name</th>
+                                        <th v-for="d in 31" :key="'sm-d-'+mIdx+'-'+d" class="w-14 text-center font-bold bg-gray-100 text-xs">{{ d }}</th>
+                                        <th class="w-28 text-center bg-green-100 font-bold border-l-2 border-black">Month Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="bg-gray-100 border-b-2 border-black">
+                                        <td colspan="2" class="text-right font-bold pr-3 text-xs uppercase text-gray-600">Daily Tip Pool &rarr;</td>
+                                        <td v-for="d in 31" :key="'sm-pool-'+mIdx+'-'+d" class="text-right px-1 py-1 text-xs font-bold text-gray-700 bg-gray-100">
+                                            {{ formatCurrencyBlanks(activeYearDisplayData[mIdx]?.dailyData?.[d-1]?.pool) }}
+                                        </td>
+                                        <td class="text-right bg-green-100 border-l-2 border-black font-bold text-green-900 px-2 text-xs">
+                                            {{ formatCurrencyBlanks(activeYearDisplayData[mIdx]?.pool) }}
+                                        </td>
+                                    </tr>
+
+                                    <tr v-for="emp in sortedEmployees" :key="'sm-emp-'+mIdx+'-'+emp.id" class="hover:bg-gray-50">
+                                        <td :class="emp.isManager ? 'bg-blue-50/70 font-semibold text-blue-900' : (emp.isDriver ? 'bg-green-100/60 font-semibold text-green-900' : '')">{{ emp.lastName }}</td>
+                                        <td :class="emp.isManager ? 'bg-blue-50/70 font-semibold text-blue-900' : (emp.isDriver ? 'bg-green-100/60 font-semibold text-green-900' : '')">{{ formatFirstName(emp) }}</td>
+                                        
+                                        <td v-for="d in 31" :key="'sm-emp-td-'+mIdx+'-'+emp.id+'-'+d" class="text-right px-1 py-1 text-xs font-medium border-gray-200">
+                                            <template v-if="multiYearDisplayMode === 'tips'">
+                                                <div class="flex items-center justify-end gap-0.5">
+                                                    {{ formatCurrencyBlanks((activeYearDisplayData[mIdx]?.calculatedTips?.[d-1]?.tips?.[emp.id] || 0) + (parseFloat(activeYearDisplayData[mIdx]?.dailyData?.[d-1]?.driverTips?.[emp.id]) || 0)) }}
+                                                </div>
+                                            </template>
+                                            <template v-else>
+                                                <span :class="(activeYearDisplayData[mIdx]?.dailyData?.[d-1]?.hours?.[emp.id] || 0) > 0 ? 'text-black font-bold bg-yellow-100 px-1 rounded' : 'text-gray-400'">
+                                                    {{ activeYearDisplayData[mIdx]?.dailyData?.[d-1]?.hours?.[emp.id] || '-' }}
+                                                </span>
+                                            </template>
+                                        </td>
+
+                                        <td class="text-right bg-green-50 border-l-2 border-black font-bold text-green-900 px-2 text-xs">
+                                            <template v-if="multiYearDisplayMode === 'tips'">
+                                                {{ formatCurrencyBlanks(activeYearDisplayData[mIdx]?.payouts?.[emp.id]) }}
+                                            </template>
+                                            <template v-else>
+                                                {{ activeYearDisplayData[mIdx]?.hours?.[emp.id] || 0 }} h
+                                            </template>
+                                        </td>
+                                    </tr>
+
+                                    <tr class="border-t">
+                                        <td colspan="2" class="text-right font-bold border-none pr-3 text-xs text-gray-600">Rounding Overage/Underage</td>
+                                        <td v-for="d in 31" :key="'sm-var-'+mIdx+'-'+d" class="text-right font-semibold px-1 text-[11px] text-gray-500">
+                                            {{ formatCurrencyBlanks(activeYearDisplayData[mIdx]?.calculatedTips?.[d-1]?.variance, true) }}
+                                        </td>
+                                        <td class="text-right font-bold bg-green-50 border-l-2 border-black text-green-900 px-2 text-xs">
+                                            {{ formatCurrencyBlanks(activeYearDisplayData[mIdx]?.variance, true) }}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else-if="activeTab === 'master'" class="h-full">
                 <div class="mb-6">
                     <div class="text-xl font-bold">RR Sundial {{ activeSite }} LLC</div>
                     <div class="text-lg text-gray-600">Tip Tracker/Calculator <span v-if="formattedPayPeriod" class="text-[#217346] font-semibold ml-1">- {{ formattedPayPeriod }}</span></div>
@@ -274,7 +513,6 @@
                 </div>
             </div>
 
-            <!-- Daily Entry Tab -->
             <div v-else-if="typeof activeTab === 'number'" class="h-full max-w-4xl mx-auto">
                 <div class="flex items-end gap-0 mb-6 mt-4">
                     <div class="border border-black px-3 py-2 bg-white w-40 h-14 flex items-center leading-tight font-bold">Total Amount of<br>Tips</div>
@@ -337,8 +575,12 @@
             </div>
         </main>
 
+        <!-- Footer Tabs Bar -->
         <footer v-if="isManagerUnlocked" class="excel-tabs shrink-0 z-10 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             <div class="excel-tab" :class="{ active: activeTab === 'master' }" @click="activeTab = 'master'">Master</div>
+            <div class="excel-tab font-bold text-indigo-800 bg-indigo-50 border-r-2 border-indigo-200" :class="{ active: activeTab === 'multiyear' }" @click="activeTab = 'multiyear'">
+                <i data-lucide="calendar-range" class="w-4 h-4 inline-block align-text-bottom mr-1"></i> Multi-Year Ledger
+            </div>
             <div v-for="d in numDays" :key="'tab-'+d" class="excel-tab font-medium" :class="{ active: activeTab === (d - 1) }" @click="activeTab = (d - 1)">Day {{ d }}</div>
         </footer>
 
@@ -503,7 +745,7 @@
         };
 
         const defaultInitialEmployees = [
-            // Redding Rancheria Sundial LLC Roster
+            // Redding Rancheria Sundial LLC Roster (23)
             { id: 'emp_0338', tempId: '0338', firstName: 'Nicholas', lastName: 'Benjamin', isDriver: false, isManager: false, sites: ['Redding'] },
             { id: 'emp_1759', tempId: '1759', firstName: 'Mackenna', lastName: 'Bradley', isDriver: false, isManager: false, sites: ['Redding'] },
             { id: 'emp_2197', tempId: '2197', firstName: 'Bryan', lastName: 'Brewer', isDriver: false, isManager: false, sites: ['Redding'] },
@@ -528,7 +770,7 @@
             { id: 'emp_1718', tempId: '1718', firstName: 'Michael', lastName: 'Whipple', isDriver: false, isManager: false, sites: ['Redding'] },
             { id: 'emp_6467', tempId: '6467', firstName: 'William', lastName: 'Williams', isDriver: false, isManager: false, sites: ['Redding'] },
 
-            // Redding Rancheria Sundial Red Bluff LLC Roster
+            // Redding Rancheria Sundial Red Bluff LLC Roster (19)
             { id: 'emp_4668', tempId: '4668', firstName: 'Franklin', lastName: 'Arellano', isDriver: false, isManager: false, sites: ['Red Bluff'] },
             { id: 'emp_8746', tempId: '8746', firstName: 'Marni', lastName: 'Barr', isDriver: false, isManager: false, sites: ['Red Bluff'] },
             { id: 'emp_0305', tempId: '0305', firstName: 'Anthony', lastName: 'Burritt-Smith', isDriver: false, isManager: false, sites: ['Red Bluff'] },
@@ -581,6 +823,10 @@
                 const employees = ref([]); 
                 const dailyData = ref(createEmptyDailyData(31));
                 const activeTab = ref('master'); 
+                const multiYearDisplayMode = ref('tips');
+                const selectedArchiveYear = ref(new Date().getFullYear().toString());
+                const yearlyArchives = ref({});
+
                 const showEmployeeModal = ref(false);
                 const showPermissionsModal = ref(false);
                 const currentPayPeriod = ref(new Date().toISOString().slice(0, 7));
@@ -672,6 +918,120 @@
                     return { finalPayouts };
                 });
 
+                const availableArchiveYears = computed(() => {
+                    const yearsSet = new Set(Object.keys(yearlyArchives.value));
+                    if (currentPayPeriod.value) yearsSet.add(currentPayPeriod.value.split('-')[0]);
+                    if (yearsSet.size === 0) yearsSet.add(new Date().getFullYear().toString());
+                    return Array.from(yearsSet).sort();
+                });
+
+                const getMonthName = (mIdx) => {
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    return monthNames[mIdx - 1] || '';
+                };
+
+                const isCurrentPayPeriodMonth = (mIdx) => {
+                    if (!currentPayPeriod.value) return false;
+                    const [year, monthStr] = currentPayPeriod.value.split('-');
+                    return year === selectedArchiveYear.value && parseInt(monthStr, 10) === mIdx;
+                };
+
+                const scrollToMonth = (mIdx) => {
+                    const el = document.getElementById(`month-section-${mIdx}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                };
+
+                const addNewYearTab = () => {
+                    const lastYear = availableArchiveYears.value[availableArchiveYears.value.length - 1] || new Date().getFullYear().toString();
+                    const nextYear = (parseInt(lastYear) + 1).toString();
+                    if (!yearlyArchives.value[nextYear]) yearlyArchives.value[nextYear] = {};
+                    selectedArchiveYear.value = nextYear;
+                };
+
+                const activeYearDisplayData = computed(() => {
+                    const year = selectedArchiveYear.value;
+                    const dataMap = {};
+                    
+                    const liveHours = {};
+                    sortedEmployees.value.forEach(emp => {
+                        let h = 0;
+                        dailyData.value.forEach(day => {
+                            h += parseFloat(day?.hours?.[emp.id]) || 0;
+                        });
+                        liveHours[emp.id] = h;
+                    });
+
+                    for (let m = 1; m <= 12; m++) {
+                        if (yearlyArchives.value[year]?.[m]) {
+                            dataMap[m] = yearlyArchives.value[year][m];
+                        } else {
+                            let isLiveMonth = false;
+                            if (currentPayPeriod.value) {
+                                const [currYr, currMStr] = currentPayPeriod.value.split('-');
+                                if (currYr === year && parseInt(currMStr, 10) === m) {
+                                    isLiveMonth = true;
+                                }
+                            }
+
+                            if (isLiveMonth) {
+                                dataMap[m] = {
+                                    pool: masterTotalTips.value,
+                                    totalDistributed: masterTotalDistributed.value,
+                                    variance: masterTotalVariance.value,
+                                    payouts: monthlyStats.value.finalPayouts,
+                                    hours: liveHours,
+                                    dailyData: dailyData.value,
+                                    calculatedTips: calculatedTips.value,
+                                    isLive: true
+                                };
+                            } else {
+                                dataMap[m] = {
+                                    pool: 0,
+                                    totalDistributed: 0,
+                                    variance: 0,
+                                    payouts: {},
+                                    hours: {},
+                                    dailyData: [],
+                                    calculatedTips: []
+                                };
+                            }
+                        }
+                    }
+                    return dataMap;
+                });
+
+                const activeYearSummary = computed(() => {
+                    let totalPool = 0;
+                    let totalDistributed = 0;
+                    let totalVariance = 0;
+                    let archivedCount = 0;
+                    const year = selectedArchiveYear.value;
+
+                    for (let m = 1; m <= 12; m++) {
+                        const mData = activeYearDisplayData.value[m];
+                        if (yearlyArchives.value[year]?.[m]) archivedCount++;
+                        totalPool += parseFloat(mData.pool) || 0;
+                        totalDistributed += parseFloat(mData.totalDistributed) || 0;
+                        totalVariance += parseFloat(mData.variance) || 0;
+                    }
+                    return { totalPool, totalDistributed, totalVariance, archivedCount };
+                });
+
+                const activeYearEmployeeYTD = computed(() => {
+                    const totals = {};
+                    sortedEmployees.value.forEach(emp => {
+                        let tips = 0;
+                        let hours = 0;
+                        for (let m = 1; m <= 12; m++) {
+                            const mData = activeYearDisplayData.value[m];
+                            tips += mData.payouts?.[emp.id] || 0;
+                            hours += mData.hours?.[emp.id] || 0;
+                        }
+                        totals[emp.id] = { tips, hours };
+                    });
+                    return totals;
+                });
+
                 const switchSite = async (site) => {
                     if (activeSite.value === site) return;
                     
@@ -693,7 +1053,8 @@
                         await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_sites', siteId), {
                             dailyData: dailyData.value,
                             numDays: numDays.value,
-                            currentPayPeriod: currentPayPeriod.value
+                            currentPayPeriod: currentPayPeriod.value,
+                            yearlyArchives: yearlyArchives.value
                         });
                     } catch (e) { console.error("Firestore save error:", e); }
                 };
@@ -768,9 +1129,7 @@
                 const closeModal = () => { modal.value.isOpen = false; };
                 const confirmModal = () => { closeModal(); };
 
-                const forceLock = () => {
-                    currentUserData.value = null;
-                };
+                const forceLock = () => { currentUserData.value = null; };
 
                 const handleLogin = () => {
                     currentUserData.value = { name: 'Manager', access: ['Red Bluff', 'Redding'], role: 'ADMIN' };
@@ -778,9 +1137,7 @@
                     refreshIcons();
                 };
 
-                const handlePeriodChange = () => {
-                    saveState();
-                };
+                const handlePeriodChange = () => { saveState(); };
 
                 const clearData = () => {
                     modal.value = {
@@ -796,7 +1153,39 @@
                 };
 
                 const archiveCurrentMonth = () => {
-                    showAlert("Current month data successfully archived into the Multi-Year Ledger.");
+                    if (!currentPayPeriod.value) return showAlert("Please select a pay period first.");
+                    const [year, monthStr] = currentPayPeriod.value.split('-');
+                    const monthIdx = parseInt(monthStr, 10);
+
+                    if (!yearlyArchives.value[year]) yearlyArchives.value[year] = {};
+
+                    const monthPayouts = {};
+                    const monthHours = {};
+
+                    sortedEmployees.value.forEach(emp => {
+                        monthPayouts[emp.id] = monthlyStats.value.finalPayouts[emp.id] || 0;
+                        let totalH = 0;
+                        dailyData.value.forEach(day => {
+                            totalH += parseFloat(day?.hours?.[emp.id]) || 0;
+                        });
+                        monthHours[emp.id] = totalH;
+                    });
+
+                    yearlyArchives.value[year][monthIdx] = {
+                        pool: masterTotalTips.value,
+                        totalDistributed: masterTotalDistributed.value,
+                        variance: masterTotalVariance.value,
+                        payouts: monthPayouts,
+                        hours: monthHours,
+                        dailyData: JSON.parse(JSON.stringify(dailyData.value)),
+                        calculatedTips: JSON.parse(JSON.stringify(calculatedTips.value)),
+                        archivedAt: new Date().toISOString()
+                    };
+
+                    saveState();
+                    activeTab.value = 'multiyear';
+                    selectedArchiveYear.value = year;
+                    showAlert(`${formattedPayPeriod.value} has been archived with full 31-day daily tracking!`);
                 };
 
                 const exportToExcel = () => {
@@ -823,8 +1212,10 @@
                         if (docSnap.exists()) {
                             const data = docSnap.data();
                             dailyData.value = data.dailyData || createEmptyDailyData(31);
+                            yearlyArchives.value = data.yearlyArchives || {};
                         } else {
                             dailyData.value = createEmptyDailyData(31);
+                            yearlyArchives.value = {};
                         }
                         refreshIcons();
                     });
@@ -855,7 +1246,9 @@
                     addEmployee, removeEmployee, toggleEmployeeSite, formatFirstName, formatCurrency, formatCurrencyBlanks,
                     modal, closeModal, confirmModal, loggedInUser, isManagerUnlocked, currentUserAccess, hasPermissionAccess,
                     formattedPayPeriod, timeRemaining, formattedTimeRemaining, refreshIcons, pinInput, setup2FA, handleLogin, forceLock,
-                    saveState, saveGlobalSettings, clearData, archiveCurrentMonth, exportToExcel, handlePeriodChange
+                    saveState, saveGlobalSettings, clearData, archiveCurrentMonth, exportToExcel, handlePeriodChange,
+                    yearlyArchives, selectedArchiveYear, multiYearDisplayMode, availableArchiveYears, getMonthName, addNewYearTab, archiveCurrentMonth,
+                    scrollToMonth, isCurrentPayPeriodMonth, activeYearDisplayData, activeYearSummary, activeYearEmployeeYTD
                 };
             }
         });
