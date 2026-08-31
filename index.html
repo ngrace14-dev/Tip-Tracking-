@@ -173,6 +173,10 @@
                         <i data-lucide="wand-2" class="w-4 h-4"></i> <span class="hidden xl:inline">Mock Data</span>
                     </button>
 
+                    <button v-if="isDevUser" @click="nukeAllData" class="text-xs sm:text-sm bg-black hover:bg-gray-800 text-red-500 font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow border border-red-900/50 transition-colors" title="DEV MODE: Nuke all Active & Historical Data">
+                        <i data-lucide="bomb" class="w-4 h-4"></i> <span class="hidden xl:inline">Nuke Data</span>
+                    </button>
+
                     <button v-if="hasPermissionAccess" @click="showPermissionsModal = true; refreshIcons()" class="text-xs sm:text-sm bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow transition-colors" title="Manage PINs & Access">
                         <i data-lucide="key" class="w-4 h-4"></i> <span class="hidden xl:inline">Manage PINs</span>
                     </button>
@@ -2015,6 +2019,23 @@
                     showAlert("Generated 31 days of realistic mock data!");
                 };
 
+                const nukeAllData = () => {
+                    modal.value = {
+                        isOpen: true,
+                        type: 'confirm',
+                        message: `DEV WARNING: Are you sure you want to completely NUKE all data for ${activeSite.value}?\n\nThis will erase the current month AND all historical multi-year archives. This cannot be undone!`,
+                        onConfirm: () => {
+                            dailyData.value = createEmptyDailyData(31);
+                            yearlyArchives.value = {};
+                            logAction("NUKED SITE DATA", `Dev completely erased all current and historical data for ${activeSite.value}.`);
+                            saveState();
+                            pushHistory();
+                            showAlert(`All data for ${activeSite.value} has been wiped clean.`);
+                        }
+                    };
+                    refreshIcons();
+                };
+
                 const logAction = (action, details) => {
                     auditLogs.value.unshift({
                         id: Date.now(),
@@ -2154,7 +2175,7 @@
                     archivedMonthDisplayMode, selectedArchivedMonthDetail, closeArchivedMonthDetail,
                     systemUsers, saveSystemUser, editSystemUser, cancelEdit, removeSystemUser, resetPersonalPin, availableRolesToAssign, save2FASetup,
                     extensions, activeExtension, activeExtensionIframe, newExtension, launchExtension, closeExtension, syncDataToExtension, addExtension, removeExtension, handleFileDrop,
-                    payrollStartDate, payrollEndDate, generateCustomDateReport, auditLogs, clearAuditLog, exportAuditLog, generateMockData,
+                    payrollStartDate, payrollEndDate, generateCustomDateReport, auditLogs, clearAuditLog, exportAuditLog, generateMockData, nukeAllData,
                     startDrag, onDrag, stopDrag, pushHistory, undo
                 };
             }
