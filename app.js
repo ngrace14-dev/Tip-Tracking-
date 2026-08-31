@@ -1320,6 +1320,14 @@ const app = createApp({
 
         const getHourInputClass = (hours) => {
             if (hours === undefined || hours === null || hours === '' || parseFloat(hours) === 0) return 'bg-white';
+            return 'bg-input-yellow';
+        };
+
+        const getDriverTipInputClass = (tip) => {
+            if (tip === undefined || tip === null || tip === '' || parseFloat(tip) === 0) return 'bg-white';
+            return 'bg-input-yellow';
+        };
+
         const sortedEmployees = computed(() => {
             return employees.value
                 .filter(emp => {
@@ -1327,7 +1335,11 @@ const app = createApp({
                     if (!emp.sites || !Array.isArray(emp.sites) || emp.sites.length === 0) return true;
                     return emp.sites.includes(activeSite.value);
                 })
-                .sort((a, b) => a.lastName.localeCompare(b.lastName));
+                .sort((a, b) => {
+                    const lastCmp = a.lastName.localeCompare(b.lastName, undefined, { sensitivity: 'base' });
+                    if (lastCmp !== 0) return lastCmp;
+                    return a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' });
+                });
         });
         const driverEmployees = computed(() => sortedEmployees.value.filter(e => e.isDriver));
 
@@ -1998,10 +2010,58 @@ const app = createApp({
                     if (data.extensions) extensions.value = data.extensions;
                     if (data.employees) employees.value = data.employees;
                 } else {
+                    const defaultInitialEmployees = [
+                        // Redding Rancheria Sundial LLC Roster
+                        { id: 'emp_0338', tempId: '0338', firstName: 'Nicholas', lastName: 'Benjamin', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_1759', tempId: '1759', firstName: 'Mackenna', lastName: 'Bradley', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_2197', tempId: '2197', firstName: 'Bryan', lastName: 'Brewer', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_8269', tempId: '8269', firstName: 'Mark', lastName: 'Brown', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_1356', tempId: '1356', firstName: 'Flora', lastName: 'Davis', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_5290', tempId: '5290', firstName: 'Michael', lastName: 'Fisk', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_8551', tempId: '8551', firstName: 'Madison', lastName: 'Gama', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_1857', tempId: '1857', firstName: 'Jenae', lastName: 'Hall', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_4998', tempId: '4998', firstName: 'Josiah', lastName: 'Hawkins', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_9419', tempId: '9419', firstName: 'Derrick', lastName: 'Hernandez-Wier', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_3605', tempId: '3605', firstName: 'Victoria', lastName: 'Holmes', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_1351', tempId: '1351', firstName: 'Curtis', lastName: 'Howerton', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_3958', tempId: '3958', firstName: 'Daniel', lastName: 'Iwasaki', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_5495', tempId: '5495', firstName: 'Susan', lastName: 'James', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_0399', tempId: '0399', firstName: 'Cortney', lastName: 'Peery', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_0451', tempId: '0451', firstName: 'Chelsey', lastName: 'Pierce', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_1442', tempId: '1442', firstName: 'Ayden', lastName: 'Reyes', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_7175', tempId: '7175', firstName: 'Angelique', lastName: 'Sharit', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_2224', tempId: '2224', firstName: 'Kevin', lastName: 'Snyder', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_6039', tempId: '6039', firstName: 'Christopher', lastName: 'Telfer', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_0920', tempId: '0920', firstName: 'Sean', lastName: 'Tolle', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_1718', tempId: '1718', firstName: 'Michael', lastName: 'Whipple', isDriver: false, isManager: false, sites: ['Redding'] },
+                        { id: 'emp_6467', tempId: '6467', firstName: 'William', lastName: 'Williams', isDriver: false, isManager: false, sites: ['Redding'] },
+
+                        // Redding Rancheria Sundial Red Bluff LLC Roster
+                        { id: 'emp_4668', tempId: '4668', firstName: 'Franklin', lastName: 'Arellano', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_8746', tempId: '8746', firstName: 'Marni', lastName: 'Barr', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_0305', tempId: '0305', firstName: 'Anthony', lastName: 'Burritt-Smith', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_7497', tempId: '7497', firstName: 'Jacob', lastName: 'Cooper', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_3657', tempId: '3657', firstName: 'Holly', lastName: 'Dalton', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_8201', tempId: '8201', firstName: 'Shaun', lastName: 'Davis', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_7529', tempId: '7529', firstName: 'Dylan', lastName: 'Dickerson', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_8367', tempId: '8367', firstName: 'Marcus', lastName: 'Emigh', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_8786', tempId: '8786', firstName: 'Janelle', lastName: 'Freeman', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_3031', tempId: '3031', firstName: 'Martin', lastName: 'Gonzales', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_9902', tempId: '9902', firstName: 'Kyndra', lastName: 'Harris', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_6369', tempId: '6369', firstName: 'Katelyn', lastName: 'Harris', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_6607', tempId: '6607', firstName: 'Jalynn', lastName: 'McCray', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_3813', tempId: '3813', firstName: 'Olissa', lastName: 'Oliver', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_1522', tempId: '1522', firstName: 'Andrew', lastName: 'Speck', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_7470', tempId: '7470', firstName: 'Jordyn', lastName: 'Stamper', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_7312', tempId: '7312', firstName: 'Daniel', lastName: 'Tugaeff-Perreira', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_3373', tempId: '3373', firstName: 'Ethan', lastName: 'Van Lent', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+                        { id: 'emp_9055', tempId: '9055', firstName: 'Nicole', lastName: 'Warnecke', isDriver: false, isManager: false, sites: ['Red Bluff'] }
+                    ];
+
                     setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), {
                         systemUsers: defaultSystemUsers,
                         extensions: [],
-                        employees: []
+                        employees: defaultInitialEmployees
                     });
                 }
             }, (error) => console.error("Global Setting fetch error:", error));
