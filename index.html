@@ -1160,7 +1160,7 @@
                     <i v-else data-lucide="info" class="w-6 h-6 text-[#217346]"></i>
                     <h3 class="font-bold text-lg">{{ modal.type === 'confirm' ? 'Confirm Action' : 'Notice' }}</h3>
                 </div>
-                <p class="mb-6 text-gray-600 text-sm leading-relaxed">{{ modal.message }}</p>
+                <p class="mb-6 text-gray-600 text-sm leading-relaxed whitespace-pre-line">{{ modal.message }}</p>
                 <div class="flex justify-end gap-3">
                     <button v-if="modal.type === 'confirm'" @click="closeModal" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800 font-medium text-sm">Cancel</button>
                     <button @click="confirmModal" class="px-4 py-2 bg-[#217346] hover:bg-[#185c37] text-white rounded-lg font-medium text-sm">OK</button>
@@ -1730,25 +1730,44 @@
                 const handleLogin = () => {
                     let parsedPin = pinInput.value.trim();
                     
-                    if (parsedPin.length >= 8) {
-                        parsedPin = parsedPin.substring(parsedPin.length - 4);
+                    if (parsedPin.length === 8) {
+                        const adminPin = parsedPin.substring(0, 4);
+                        const personalPin = parsedPin.substring(4, 8);
+                        const matchedUser = systemUsers.value[adminPin];
+                        
+                        if (matchedUser && matchedUser.personalPin === personalPin) {
+                            currentUserData.value = { ...matchedUser, pin: adminPin };
+                            pinInput.value = '';
+                            
+                            if (!matchedUser.access.includes(activeSite.value) && matchedUser.access.length > 0) {
+                                switchSite(matchedUser.access[0]);
+                            }
+                            logAction('System Unlocked', 'Logged into manager session via 2FA.');
+                            startSessionTimer();
+                            refreshIcons();
+                            return;
+                        }
                     }
 
-                    const matchedUser = systemUsers.value[parsedPin];
-                    if (matchedUser) {
-                        currentUserData.value = { ...matchedUser, pin: parsedPin };
-                        pinInput.value = '';
-                        
-                        if (!matchedUser.access.includes(activeSite.value) && matchedUser.access.length > 0) {
-                            switchSite(matchedUser.access[0]);
+                    if (parsedPin.length === 4) {
+                        const matchedUser = systemUsers.value[parsedPin];
+                        if (matchedUser) {
+                            if (matchedUser.personalPin) {
+                                showAlert("This account requires an 8-digit 2FA PIN. Access Denied.");
+                                pinInput.value = '';
+                                return;
+                            } else {
+                                pending2FAUserPin.value = parsedPin;
+                                setup2FA.value = { isOpen: true, pin1: '', pin2: '' };
+                                pinInput.value = '';
+                                refreshIcons();
+                                return;
+                            }
                         }
-                        
-                        logAction('System Unlocked', 'Logged into manager session.');
-                        startSessionTimer(); 
-                    } else {
-                        showAlert("Incorrect PIN. Access Denied.");
-                        pinInput.value = '';
                     }
+
+                    showAlert("Incorrect PIN. Access Denied.");
+                    pinInput.value = '';
                     refreshIcons();
                 };
 
@@ -1812,6 +1831,19 @@
                     showAlert(`${formattedPayPeriod.value} has been archived with full 31-day daily tracking!`);
                 };
 
+                const downloadExcelFile = (wb, fileName) => {
+                    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                    const blob = new Blob([wbout], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                };
+
                 const exportToExcel = () => {
                     try {
                         const wb = XLSX.utils.book_new();
@@ -1825,38 +1857,158 @@
                             wsData.push([emp.lastName, emp.firstName, monthlyStats.value.finalPayouts[emp.id] || 0]);
                         });
                         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Tips Summary');
-                        XLSX.writeFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_${currentPayPeriod.value}.xlsx`);
+                        downloadExcelFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_${currentPayPeriod.value}.xlsx`);
                     } catch (e) { console.error(e); }
                 };
 
                 const exportHistoricalLedger = () => {
-                    exportToExcel();
+                    try {
+                        const wb = XLSX.utils.book_new();
+                        const yearsToExport = availableArchiveYears.value;
+
+                        if (yearsToExport.length === 0) {
+                            return showAlert("No historical data available to export.");
+                        }
+
+                        yearsToExport.forEach(year => {
+                            const myHeader = ['Last Name', 'First Name', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'YTD Total Tips ($)', 'YTD Total Hours (h)'];
+                            const myData = [
+                                [`RR Sundial ${activeSite.value} LLC - Multi-Year Master Ledger (${year})`],
+                                [],
+                                myHeader
+                            ];
+
+                            const summary = activeYearSummary.value;
+
+                            const myPoolRow = ['Monthly Tip Pool ->', ''];
+                            for (let m = 1; m <= 12; m++) {
+                                myPoolRow.push(activeYearDisplayData.value[m]?.pool || 0);
+                            }
+                            myPoolRow.push(summary.totalPool);
+                            myPoolRow.push('');
+                            myData.push(myPoolRow);
+
+                            sortedEmployees.value.forEach(emp => {
+                                const row = [emp.lastName, formatFirstName(emp)];
+                                for (let m = 1; m <= 12; m++) {
+                                    row.push(activeYearDisplayData.value[m]?.payouts?.[emp.id] || 0);
+                                }
+                                const ytd = activeYearEmployeeYTD.value[emp.id];
+                                row.push(ytd?.tips || 0);
+                                row.push(ytd?.hours || 0);
+                                myData.push(row);
+                            });
+
+                            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(myData), `Year ${year}`);
+                        });
+                        downloadExcelFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_Historical_Master_Ledger.xlsx`);
+                    } catch (e) { console.error(e); }
                 };
 
                 const generateCustomDateReport = () => {
-                    showAlert(`Generating payroll report from ${payrollStartDate.value} to ${payrollEndDate.value}...`);
-                    showPayrollModal.value = false;
+                    if (!payrollStartDate.value || !payrollEndDate.value) {
+                        return showAlert("Please select both a start date and an end date.");
+                    }
+
+                    try {
+                        const dStart = new Date(payrollStartDate.value + 'T00:00:00');
+                        const dEnd = new Date(payrollEndDate.value + 'T23:59:59');
+                        
+                        const wb = XLSX.utils.book_new();
+                        const wsData = [
+                            [`RR Sundial ${activeSite.value} LLC - Payroll / Custom Date Report`], 
+                            ['Period:', dStart.toLocaleDateString(), 'to', dEnd.toLocaleDateString()], 
+                            []
+                        ];
+                        wsData.push(['Last Name', 'First Name', 'Total Hours', 'Total Tips ($)']);
+
+                        const totals = {};
+                        
+                        const processMonthData = (year, mIdx, mData) => {
+                            if (!mData || !mData.dailyData) return;
+                            for (let d = 0; d < 31; d++) {
+                                const currentDay = new Date(year, mIdx - 1, d + 1, 12, 0, 0);
+                                if (currentDay.getMonth() !== mIdx - 1) continue; 
+
+                                if (currentDay >= dStart && currentDay <= dEnd) {
+                                    const dayObj = mData.dailyData[d];
+                                    const calcObj = mData.calculatedTips ? mData.calculatedTips[d] : null;
+                                    
+                                    if (dayObj && dayObj.hours) {
+                                        Object.keys(dayObj.hours).forEach(empId => {
+                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
+                                            totals[empId].hours += parseFloat(dayObj.hours[empId]) || 0;
+                                        });
+                                    }
+                                    if (calcObj && calcObj.tips) {
+                                        Object.keys(calcObj.tips).forEach(empId => {
+                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
+                                            totals[empId].tips += parseFloat(calcObj.tips[empId]) || 0;
+                                        });
+                                    }
+                                    if (dayObj && dayObj.driverTips) {
+                                        Object.keys(dayObj.driverTips).forEach(empId => {
+                                            if (!totals[empId]) totals[empId] = { hours: 0, tips: 0 };
+                                            totals[empId].tips += parseFloat(dayObj.driverTips[empId]) || 0;
+                                        });
+                                    }
+                                }
+                            }
+                        };
+
+                        if (yearlyArchives.value) {
+                            for (const year in yearlyArchives.value) {
+                                for (const mIdx in yearlyArchives.value[year]) {
+                                    processMonthData(parseInt(year), parseInt(mIdx), yearlyArchives.value[year][mIdx]);
+                                }
+                            }
+                        }
+
+                        if (currentPayPeriod.value) {
+                            const [currYr, currM] = currentPayPeriod.value.split('-');
+                            processMonthData(parseInt(currYr), parseInt(currM), {
+                                dailyData: dailyData.value,
+                                calculatedTips: calculatedTips.value
+                            });
+                        }
+
+                        let hasData = false;
+                        employees.value.forEach(emp => {
+                            const t = totals[emp.id];
+                            if (t && (t.hours > 0 || t.tips > 0)) {
+                                wsData.push([emp.lastName, formatFirstName(emp), Math.round(t.hours * 100) / 100, Math.round(t.tips * 100) / 100]);
+                                hasData = true;
+                            }
+                        });
+
+                        if (!hasData) {
+                            return showAlert('No recorded hours or tips found in the ledger for the selected dates.');
+                        }
+
+                        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Payroll Report');
+                        downloadExcelFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_DateRange_Report.xlsx`);
+                        showPayrollModal.value = false;
+                    } catch(err) {
+                        console.error(err);
+                        showAlert('Error generating report: ' + err.message);
+                    }
                 };
 
                 const generateMockData = () => {
-                    // Create a completely fresh array to trigger Vue's reactivity
                     const newMockData = createEmptyDailyData(31);
                     
                     newMockData.forEach(day => {
                         day.pool = Math.floor(Math.random() * 500) + 200;
                         sortedEmployees.value.forEach(emp => {
-                            // Don't give managers floor hours to keep tip math realistic
                             if (!emp.isManager) {
                                 day.hours[emp.id] = Math.floor(Math.random() * 8) + 1;
                             }
-                            // Give drivers some random direct delivery tips
                             if (emp.isDriver) {
                                 day.driverTips[emp.id] = Math.floor(Math.random() * 30) + 5;
                             }
                         });
                     });
                     
-                    // Reassign the main variable to force the UI and database to update
                     dailyData.value = newMockData;
                     saveState();
                     pushHistory();
@@ -1919,7 +2071,19 @@
 
                 const removeSystemUser = (pin) => { delete systemUsers.value[pin]; };
                 const resetPersonalPin = (pin) => { if (systemUsers.value[pin]) systemUsers.value[pin].personalPin = null; };
-                const save2FASetup = () => { setup2FA.value.isOpen = false; handleLogin(); };
+                
+                const save2FASetup = () => {
+                    if (setup2FA.value.pin1.length !== 4 || setup2FA.value.pin1 !== setup2FA.value.pin2) {
+                        return showAlert("Personal PINs must be 4 digits and match.");
+                    }
+                    if (systemUsers.value[pending2FAUserPin.value]) {
+                        systemUsers.value[pending2FAUserPin.value].personalPin = setup2FA.value.pin1;
+                        saveGlobalSettings();
+                        pinInput.value = pending2FAUserPin.value + setup2FA.value.pin1;
+                        setup2FA.value.isOpen = false;
+                        handleLogin();
+                    }
+                };
 
                 const startDrag = (e) => { isDragging = true; startX = e.pageX; };
                 const onDrag = (e) => { if (isDragging) scrollLeft += (e.pageX - startX); };
