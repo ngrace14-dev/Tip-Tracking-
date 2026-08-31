@@ -1688,10 +1688,17 @@
                 };
 
                 const showAlert = (msg) => { modal.value = { isOpen: true, type: 'alert', message: msg, onConfirm: null }; refreshIcons(); };
-                const closeModal = () => { modal.value.isOpen = false; };
+                
+                const closeModal = () => { 
+                    modal.value.isOpen = false; 
+                };
+
                 const confirmModal = () => { 
-                    if (modal.value.onConfirm) modal.value.onConfirm();
+                    const callback = modal.value.onConfirm;
                     closeModal(); 
+                    if (callback) {
+                        setTimeout(() => { callback(); }, 50);
+                    }
                 };
 
                 const closeArchivedMonthDetail = () => {
@@ -1738,27 +1745,44 @@
                 const handleLogin = () => {
                     let parsedPin = pinInput.value.trim();
 
-                    if (parsedPin.length === 8) {
-                        const adminPin = parsedPin.substring(0, 4);
-                        const personalPin = parsedPin.substring(4, 8);
-                        const matchedUser = systemUsers.value[adminPin];
+                    const matchedUser = systemUsers.value[parsedPin];
+                    
+                    if (matchedUser) {
+                        currentUserData.value = { ...matchedUser, pin: parsedPin };
+                        pinInput.value = '';
                         
-                        if (matchedUser && matchedUser.personalPin === personalPin) {
-                            currentUserData.value = { ...matchedUser, pin: adminPin };
-                            pinInput.value = '';
-                            
-                            if (!matchedUser.access.includes(activeSite.value) && matchedUser.access.length > 0) {
-                                switchSite(matchedUser.access[0]);
-                            }
-                            logAction('System Unlocked', 'Logged into manager session via 2FA.');
-                            startSessionTimer();
-                            refreshIcons();
-                            return;
+                        if (!matchedUser.access.includes(activeSite.value) && matchedUser.access.length > 0) {
+                            switchSite(matchedUser.access[0]);
                         }
-                    } else if (parsedPin.length === 4) {
-                        const matchedUser = systemUsers.value[parsedPin];
-                        if (matchedUser) {
-                            if (matchedUser.personalPin) {
+                        
+                        logAction('System Unlocked', 'Logged into manager session via PIN.');
+                        startSessionTimer();
+                        refreshIcons();
+                        return;
+                    } 
+                    
+                    const possibleAdminPin = parsedPin.substring(0, 4);
+                    const possiblePersonalPin = parsedPin.substring(4, 8);
+                    const userByAdminPin = systemUsers.value[possibleAdminPin];
+
+                    if (parsedPin.length === 8 && userByAdminPin && userByAdminPin.personalPin === possiblePersonalPin) {
+                        currentUserData.value = { ...userByAdminPin, pin: possibleAdminPin };
+                        pinInput.value = '';
+                        
+                        if (!userByAdminPin.access.includes(activeSite.value) && userByAdminPin.access.length > 0) {
+                            switchSite(userByAdminPin.access[0]);
+                        }
+                        
+                        logAction('System Unlocked', 'Logged into manager session via 8-digit 2FA.');
+                        startSessionTimer();
+                        refreshIcons();
+                        return;
+                    }
+
+                    if (parsedPin.length === 4) {
+                        const userRequiringSetup = systemUsers.value[parsedPin];
+                        if (userRequiringSetup) {
+                            if (userRequiringSetup.personalPin) {
                                 showAlert("This account requires an 8-digit 2FA PIN. Access Denied.");
                                 pinInput.value = '';
                                 return;
@@ -1796,6 +1820,7 @@
                         onConfirm: () => {
                             dailyData.value = createEmptyDailyData(31);
                             saveState();
+                            showAlert(`Current month data has been safely cleared.`);
                         }
                     };
                     refreshIcons();
@@ -2029,10 +2054,19 @@
                         onConfirm: () => {
                             dailyData.value = createEmptyDailyData(31);
                             yearlyArchives.value = {};
-                            logAction("NUKED SITE DATA", `Dev completely erased all current and historical data for ${activeSite.value}.`);
-                            saveState();
-                            pushHistory();
-                            showAlert(`All data for ${activeSite.value} has been wiped clean.`);
+                            history.value = [];
+                            historyIndex.value = -1;
+                            
+                            const siteId = activeSite.value.replace(/\s+/g, '').toLowerCase();
+                            setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_sites', siteId), {
+                                dailyData: dailyData.value,
+                                numDays: numDays.value,
+                                currentPayPeriod: currentPayPeriod.value,
+                                yearlyArchives: yearlyArchives.value
+                            }).then(() => {
+                                logAction("NUKED SITE DATA", `Dev completely erased all current and historical data for ${activeSite.value}.`);
+                                showAlert(`All data for ${activeSite.value} has been wiped clean.`);
+                            });
                         }
                     };
                     refreshIcons();
