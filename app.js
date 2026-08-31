@@ -44,7 +44,7 @@ const app = createApp({
 
         const activeSite = ref('Red Bluff');
         const numDays = ref(31); 
-        const employees = ref([]);
+        const employees = ref([]); // Shared across all sites
         const dailyData = ref(createEmptyDailyData(31));
         const activeTab = ref('master'); 
         const masterDisplayMode = ref('tips'); 
@@ -71,7 +71,7 @@ const app = createApp({
         const ocrProgress = ref(0);
         const pastedRawText = ref('');
 
-        const newEmp = ref({ first: '', last: '', tempId: '', isDriver: false, isManager: false });
+        const newEmp = ref({ first: '', last: '', tempId: '', isDriver: false, isManager: false, siteRB: true, siteRD: true });
         
         const isFullTimeId = (id) => {
             if (!id) return false;
@@ -241,12 +241,10 @@ const app = createApp({
             return year === selectedArchiveYear.value && parseInt(monthStr, 10) === mIdx;
         };
 
-        // --- NEW COMPUTED PROPERTIES TO PREVENT RENDER CRASHES ---
         const activeYearDisplayData = computed(() => {
             const year = selectedArchiveYear.value;
             const dataMap = {};
             
-            // Pre-calculate live hours once so we don't repeat it 7,500 times
             const liveHours = {};
             employees.value.forEach(emp => {
                 let h = 0;
@@ -329,7 +327,6 @@ const app = createApp({
             return totals;
         });
 
-        // Retaining these original methods solely for the background Excel Exporter
         const getMonthDisplayData = (year, mIdx) => {
             if (yearlyArchives.value[year]?.[mIdx]) {
                 return yearlyArchives.value[year][mIdx];
@@ -396,12 +393,21 @@ const app = createApp({
             return { tips, hours };
         };
 
-        const switchSite = (site) => {
+        // --- SITE SWITCHING WITH STATE PRESERVATION ---
+        const switchSite = async (site) => {
             if (activeSite.value === site) return;
+            
+            // 1. Immediately save current site data before switching
+            isSwitchingSites = true;
+            await saveState();
+            
+            // 2. Set new active site & reset tab to master
             activeSite.value = site;
             activeTab.value = 'master';
             localStorage.setItem('sundial-last-site', activeSite.value);
             logAction("Switched Site", `Switched location view to ${site}`);
+            
+            // 3. Load the target site's independent workspace
             loadSiteData();
         };
 
@@ -593,14 +599,21 @@ const app = createApp({
             });
         };
 
+        // --- WATCHERS FOR GLOBAL SETTINGS & SHARED ROSTER ---
         watch(systemUsers, async () => {
             if (!isDbConnected.value || !auth.currentUser) return;
-            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { systemUsers: systemUsers.value, extensions: extensions.value }, { merge: true }); } catch (e) { console.error(e); }
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { systemUsers: systemUsers.value, extensions: extensions.value, employees: employees.value }, { merge: true }); } catch (e) { console.error(e); }
         }, { deep: true });
 
         watch(extensions, async () => {
             if (!isDbConnected.value || !auth.currentUser) return;
-            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { systemUsers: systemUsers.value, extensions: extensions.value }, { merge: true }); } catch (e) { console.error(e); }
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { systemUsers: systemUsers.value, extensions: extensions.value, employees: employees.value }, { merge: true }); } catch (e) { console.error(e); }
+        }, { deep: true });
+
+        // Synchronize shared employee roster globally
+        watch(employees, async () => {
+            if (!isDbConnected.value || !auth.currentUser) return;
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), { systemUsers: systemUsers.value, extensions: extensions.value, employees: employees.value }, { merge: true }); } catch (e) { console.error(e); }
         }, { deep: true });
 
         const launchExtension = (ext) => {
@@ -904,7 +917,6 @@ const app = createApp({
                 pastedRawText.value = '';
                 return showAlert("Success! Parsed Multi-Day Breakdown and populated all 31 days.");
             }
-
 
             let masterSheetName = wb.SheetNames.find(n => n.toLowerCase().includes('master'));
             let dailySheetNames = wb.SheetNames.filter(n => n.replace(/[^0-9]/g, '').length > 0).sort((a,b) => parseInt(a.replace(/[^0-9]/g, '')) - parseInt(b.replace(/[^0-9]/g, '')));
@@ -1262,7 +1274,6 @@ const app = createApp({
                     if (matchedUser.personalPin) {
                         showAlert("2FA is enabled for this account. Please enter your full 8-digit PIN (Admin Assigned + Personal).");
                     } else {
-                        // Trigger 2FA setup
                         pending2FAUserPin.value = parsedPin;
                         setup2FA.value.isOpen = true;
                         setup2FA.value.pin1 = '';
@@ -1289,7 +1300,6 @@ const app = createApp({
             const basePin = pending2FAUserPin.value;
             systemUsers.value[basePin].personalPin = setup2FA.value.pin1;
             
-            // Auto login after saving
             setup2FA.value.isOpen = false;
             logAction("2FA Setup", `User configured their 4-digit personal PIN for the first time.`);
             finalizeLogin(systemUsers.value[basePin], basePin);
@@ -1310,15 +1320,15 @@ const app = createApp({
 
         const getHourInputClass = (hours) => {
             if (hours === undefined || hours === null || hours === '' || parseFloat(hours) === 0) return 'bg-white';
-            return 'bg-input-yellow';
-        };
-
-        const getDriverTipInputClass = (tip) => {
-            if (tip === undefined || tip === null || tip === '' || parseFloat(tip) === 0) return 'bg-white';
-            return 'bg-input-yellow';
-        };
-
-        const sortedEmployees = computed(() => [...employees.value].sort((a, b) => a.lastName.localeCompare(b.lastName)));
+        const sortedEmployees = computed(() => {
+            return employees.value
+                .filter(emp => {
+                    // Fallback for legacy records without explicit site array
+                    if (!emp.sites || !Array.isArray(emp.sites) || emp.sites.length === 0) return true;
+                    return emp.sites.includes(activeSite.value);
+                })
+                .sort((a, b) => a.lastName.localeCompare(b.lastName));
+        });
         const driverEmployees = computed(() => sortedEmployees.value.filter(e => e.isDriver));
 
         const roundToQuarter = (num) => Math.round(num * 4) / 4;
@@ -1327,14 +1337,14 @@ const app = createApp({
             return dailyData.value.map(day => {
                 const pool = parseFloat(day?.pool) || 0;
                 let totalHours = 0;
-                employees.value.forEach(emp => {
+                sortedEmployees.value.forEach(emp => {
                     if (!emp.isManager) totalHours += parseFloat(day?.hours?.[emp.id]) || 0;
                 });
                 const rate = totalHours > 0 ? pool / totalHours : 0;
                 
                 let totalDistributed = 0;
                 const tips = {};
-                employees.value.forEach(emp => {
+                sortedEmployees.value.forEach(emp => {
                     const hrs = parseFloat(day?.hours?.[emp.id]) || 0;
                     if (hrs > 0 && !emp.isManager) {
                         const roundedTip = roundToQuarter(hrs * rate);
@@ -1354,7 +1364,7 @@ const app = createApp({
 
         const monthlyStats = computed(() => {
             const finalPayouts = {};
-            employees.value.forEach(emp => {
+            sortedEmployees.value.forEach(emp => {
                 let empTotal = 0;
                 dailyData.value.forEach((day, dayIndex) => {
                     empTotal += calculatedTips.value[dayIndex]?.tips?.[emp.id] || 0;
@@ -1364,44 +1374,91 @@ const app = createApp({
             });
             return { finalPayouts };
         });
+        const activeYearDisplayData = computed(() => {
+            const year = selectedArchiveYear.value;
+            const dataMap = {};
+            
+            const liveHours = {};
+            sortedEmployees.value.forEach(emp => {
+                let h = 0;
+                dailyData.value.forEach(day => {
+                    h += parseFloat(day?.hours?.[emp.id]) || 0;
+                });
+                liveHours[emp.id] = h;
+            });
 
-        const exportHistoricalLedger = () => {
-            try {
-                const wb = XLSX.utils.book_new();
-                const yearsToExport = availableArchiveYears.value;
-
-                if (yearsToExport.length === 0) {
-                    return showAlert("No historical data available to export.");
-                }
-
-                yearsToExport.forEach(year => {
-                    const myHeader = ['Last Name', 'First Name', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'YTD Total Tips ($)', 'YTD Total Hours (h)'];
-                    const myData = [
-                        [`RR Sundial ${activeSite.value} LLC - Multi-Year Master Ledger (${year})`],
-                        [],
-                        myHeader
-                    ];
-
-                    const summary = getYearlySummary(year);
-
-                    const myPoolRow = ['Monthly Tip Pool ->', ''];
-                    for (let m = 1; m <= 12; m++) {
-                        myPoolRow.push(getMonthDisplayData(year, m).pool || 0);
-                    }
-                    myPoolRow.push(summary.totalPool);
-                    myPoolRow.push('');
-                    myData.push(myPoolRow);
-
-                    sortedEmployees.value.forEach(emp => {
-                        const row = [emp.lastName, formatFirstName(emp)];
-                        for (let m = 1; m <= 12; m++) {
-                            row.push(getMonthDisplayData(year, m).payouts?.[emp.id] || 0);
+            for (let m = 1; m <= 12; m++) {
+                if (yearlyArchives.value[year]?.[m]) {
+                    dataMap[m] = yearlyArchives.value[year][m];
+                } else {
+                    let isLiveMonth = false;
+                    if (currentPayPeriod.value) {
+                        const [currYr, currMStr] = currentPayPeriod.value.split('-');
+                        if (currYr === year && parseInt(currMStr, 10) === m) {
+                            isLiveMonth = true;
                         }
-                        const ytd = getEmployeeYTDTotal(year, emp.id);
-                        row.push(ytd.tips);
-                        row.push(ytd.hours);
-                        myData.push(row);
-                    });
+                    }
+
+                    if (isLiveMonth) {
+                        dataMap[m] = {
+                            pool: masterTotalTips.value,
+                            totalDistributed: masterTotalDistributed.value,
+                            variance: masterTotalVariance.value,
+                            payouts: monthlyStats.value.finalPayouts,
+                            hours: liveHours,
+                            dailyData: dailyData.value,
+                            calculatedTips: calculatedTips.value,
+                            isLive: true
+                        };
+                    } else {
+                        dataMap[m] = {
+                            pool: 0,
+                            totalDistributed: 0,
+                            variance: 0,
+                            payouts: {},
+                            hours: {},
+                            dailyData: [],
+                            calculatedTips: []
+                        };
+                    }
+                }
+            }
+            return dataMap;
+        });
+
+        const activeYearSummary = computed(() => {
+            let totalPool = 0;
+            let totalDistributed = 0;
+            let totalVariance = 0;
+            let archivedCount = 0;
+            const year = selectedArchiveYear.value;
+
+            for (let m = 1; m <= 12; m++) {
+                const mData = activeYearDisplayData.value[m];
+                if (yearlyArchives.value[year]?.[m]) {
+                    archivedCount++;
+                }
+                totalPool += parseFloat(mData.pool) || 0;
+                totalDistributed += parseFloat(mData.totalDistributed) || 0;
+                totalVariance += parseFloat(mData.variance) || 0;
+            }
+            return { totalPool, totalDistributed, totalVariance, archivedCount };
+        });
+
+        const activeYearEmployeeYTD = computed(() => {
+            const totals = {};
+            sortedEmployees.value.forEach(emp => {
+                let tips = 0;
+                let hours = 0;
+                for (let m = 1; m <= 12; m++) {
+                    const mData = activeYearDisplayData.value[m];
+                    tips += mData.payouts?.[emp.id] || 0;
+                    hours += mData.hours?.[emp.id] || 0;
+                }
+                totals[emp.id] = { tips, hours };
+            });
+            return totals;
+        });
 
                     myData.push([]);
                     const myVarianceRow = ['Monthly Rounding Variance', ''];
@@ -1488,26 +1545,26 @@ const app = createApp({
                                     const drvRow = [drv.lastName, formatFirstName(drv)];
                                     let monthDrvTips = 0;
                                     for (let d = 1; d <= 31; d++) {
-                                        const t = parseFloat(mDataObj.dailyData[d-1]?.driverTips?.[drv.id]) || 0;
-                                        drvRow.push(t);
-                                        monthDrvTips += t;
-                                    }
-                                    drvRow.push(monthDrvTips);
-                                    mDailyData.push(drvRow);
-                                } );
-                            }
-
-                            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mDailyData), `${year}-${mName}`);
-                        }
-                    }
-                });
-
-                XLSX.writeFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_Historical_Master_Ledger.xlsx`);
-                logAction("Exported Historical Ledger", "Exported multi-year historical master ledger and daily sheets to Excel.");
-            } catch (error) {
-                console.error(error);
-                showAlert('Error generating Historical Ledger Excel file. Please try again.');
+        const switchSite = async (site) => {
+            if (activeSite.value === site) return;
+            
+            // Security check: restrict users assigned to only one site from viewing other stores
+            if (isManagerUnlocked.value && currentUserAccess.value.length > 0 && !currentUserAccess.value.includes(site)) {
+                return showAlert(`Access Restricted: Your account does not have permission to access ${site}.`);
             }
+            
+            // 1. Immediately save current site data before switching
+            isSwitchingSites = true;
+            await saveState();
+            
+            // 2. Set new active site & reset tab to master
+            activeSite.value = site;
+            activeTab.value = 'master';
+            localStorage.setItem('sundial-last-site', activeSite.value);
+            logAction("Switched Site", `Switched location view to ${site}`);
+            
+            // 3. Load the target site's independent workspace
+            loadSiteData();
         };
 
         const generateExcelWorkbook = () => {
@@ -1697,7 +1754,7 @@ const app = createApp({
         };
 
         const clearData = () => {
-            showConfirm(`Are you sure you want to delete all hours and tips for ${activeSite.value}? (Your employee roster will be saved).`, () => {
+            showConfirm(`Are you sure you want to delete all hours and tips for ${activeSite.value}? (Your shared employee roster will be saved).`, () => {
                 dailyData.value = createEmptyDailyData(numDays.value);
                 logAction("Reset Pay Period", `Cleared all daily input values for ${activeSite.value}.`);
                 saveState();
@@ -1706,41 +1763,67 @@ const app = createApp({
 
         const addEmployee = () => {
             if (!newEmp.value.first.trim() || !newEmp.value.last.trim()) return showAlert("Please enter both a first and last name.");
+            
+            const assignedSites = [];
+            if (newEmp.value.siteRB) assignedSites.push('Red Bluff');
+            if (newEmp.value.siteRD) assignedSites.push('Redding');
+            
+            if (assignedSites.length === 0) {
+                return showAlert("Please select at least one site location for this employee.");
+            }
+
             employees.value.push({
                 id: 'emp_' + Date.now() + Math.random().toString(36).substring(2, 9),
                 firstName: newEmp.value.first.trim(), 
                 lastName: newEmp.value.last.trim(), 
                 isDriver: newEmp.value.isDriver, 
                 isManager: newEmp.value.isManager,
-                tempId: newEmp.value.tempId ? newEmp.value.tempId.trim() : ''
+                tempId: newEmp.value.tempId ? newEmp.value.tempId.trim() : '',
+                sites: assignedSites
             });
-            logAction("Added Employee", `Added ${newEmp.value.first.trim()} ${newEmp.value.last.trim()} to roster.`);
-            newEmp.value = { first: '', last: '', tempId: '', isDriver: false, isManager: false };
+            logAction("Added Employee", `Added ${newEmp.value.first.trim()} ${newEmp.value.last.trim()} to store roster (${assignedSites.join(', ')}).`);
+            newEmp.value = { first: '', last: '', tempId: '', isDriver: false, isManager: false, siteRB: true, siteRD: true };
+            saveState();
+        };
+
+        const toggleEmployeeSite = (emp, site) => {
+            if (!emp.sites || !Array.isArray(emp.sites)) {
+                emp.sites = ['Red Bluff', 'Redding'];
+            }
+            if (emp.sites.includes(site)) {
+                if (emp.sites.length === 1) {
+                    return showAlert("An employee must belong to at least one site location.");
+                }
+                emp.sites = emp.sites.filter(s => s !== site);
+            } else {
+                emp.sites.push(site);
+            }
+            logAction("Updated Employee Site Access", `Updated site access for ${emp.firstName} ${emp.lastName}: ${emp.sites.join(', ')}`);
             saveState();
         };
 
         const removeEmployee = (id) => { 
-            const empToRemove = employees.value.find(e => e.id === id);
-            showConfirm("Are you sure you want to delete this employee from the roster?", () => {
-                if (empToRemove) logAction("Removed Employee", `Removed ${empToRemove.firstName} ${empToRemove.lastName} from roster.`);
-                employees.value = employees.value.filter(e => e.id !== id);
-                saveState();
-            });
-        };
-
-        const quickLogin = (pin) => {
-            const matchedUser = systemUsers.value[pin];
-            if (matchedUser) {
-                const previousName = currentUserData.value.name;
-                currentUserData.value = { ...matchedUser, pin: pin };
+        const syncDataToExtension = () => {
+            if (activeExtensionIframe.value && activeExtensionIframe.value.contentWindow) {
+                const cleanEmployees = JSON.parse(JSON.stringify(sortedEmployees.value));
+                const cleanDailyData = JSON.parse(JSON.stringify(dailyData.value));
                 
-                if (!matchedUser.access.includes(activeSite.value)) {
-                    switchSite(matchedUser.access[0]);
-                }
+                const payload = {
+                    type: 'SUNDIAL_DATA_SYNC',
+                    site: activeSite.value,
+                    period: formattedPayPeriod.value,
+                    employees: cleanEmployees,
+                    data: cleanDailyData,
+                    calculatedTips: JSON.parse(JSON.stringify(calculatedTips.value)),
+                    masterTotalTips: masterTotalTips.value,
+                    masterTotalDistributed: masterTotalDistributed.value,
+                    masterTotalVariance: masterTotalVariance.value,
+                    monthlyPayouts: JSON.parse(JSON.stringify(monthlyStats.value.finalPayouts)),
+                    yearlyArchives: JSON.parse(JSON.stringify(yearlyArchives.value))
+                };
                 
-                logAction('System Overridden', `DEV quickly switched session from ${previousName} to ${matchedUser.name}.`);
-                startSessionTimer(); 
-                nextTick(() => lucide.createIcons());
+                activeExtensionIframe.value.contentWindow.postMessage(payload, '*');
+                logAction("API Sync", `Pushed live data payload to Virtual Tool: ${activeExtension.value.name}`);
             }
         };
 
@@ -1775,7 +1858,6 @@ const app = createApp({
 
         const applySnapshot = (data) => {
             const currentDataStr = JSON.stringify({
-                employees: employees.value,
                 dailyData: dailyData.value,
                 numDays: numDays.value,
                 auditLogs: auditLogs.value,
@@ -1784,7 +1866,6 @@ const app = createApp({
             });
             
             const newDataStr = JSON.stringify({
-                employees: data.employees || [],
                 dailyData: data.dailyData || createEmptyDailyData(31),
                 numDays: data.numDays || 31,
                 auditLogs: data.auditLogs || [],
@@ -1794,7 +1875,6 @@ const app = createApp({
 
             if (currentDataStr === newDataStr) return;
 
-            employees.value = data.employees || [];
             numDays.value = data.numDays || 31;
             let loadedData = data.dailyData || createEmptyDailyData(31);
             if (loadedData.length < 31) {
@@ -1813,7 +1893,6 @@ const app = createApp({
             if (isUndoing || isSwitchingSites || !isDbConnected.value || !auth.currentUser) return;
             
             const payload = {
-                employees: employees.value, 
                 dailyData: dailyData.value, 
                 numDays: numDays.value, 
                 auditLogs: auditLogs.value,
@@ -1844,13 +1923,13 @@ const app = createApp({
             saveState();
         };
 
-        watch([employees, dailyData, numDays, currentPayPeriod], () => pushHistory(), { deep: true });
+        watch([dailyData, numDays, currentPayPeriod], () => pushHistory(), { deep: true });
 
         const undo = () => {
             if (historyIndex.value > 0) {
                 isUndoing = true; historyIndex.value--;
                 const snap = JSON.parse(history.value[historyIndex.value]);
-                employees.value = snap.e; 
+                employees.value = snap.e || employees.value; 
                 
                 let loadedData = snap.d;
                 if (loadedData.length < 31) {
@@ -1876,12 +1955,6 @@ const app = createApp({
                 if (docSnap.exists()) {
                     applySnapshot(docSnap.data());
                 } else {
-                    const defaultRosters = {
-                        'Red Bluff': [],
-                        'Redding': []
-                    };
-
-                    employees.value = defaultRosters[activeSite.value] || [];
                     numDays.value = 31;
                     dailyData.value = createEmptyDailyData(31);
                     auditLogs.value = [];
@@ -1917,15 +1990,18 @@ const app = createApp({
                 return;
             }
 
+            // Global settings listener (Loads systemUsers, extensions, and the shared employee roster)
             onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     if (data.systemUsers) systemUsers.value = data.systemUsers;
                     if (data.extensions) extensions.value = data.extensions;
+                    if (data.employees) employees.value = data.employees;
                 } else {
                     setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), {
                         systemUsers: defaultSystemUsers,
-                        extensions: []
+                        extensions: [],
+                        employees: []
                     });
                 }
             }, (error) => console.error("Global Setting fetch error:", error));
@@ -1952,7 +2028,7 @@ const app = createApp({
         return {
             activeSite, switchSite, numDays, employees, sortedEmployees, driverEmployees, dailyData, activeTab,
             showEmployeeModal, showPermissionsModal, newEmp, newUserAuth, editingPin, historyIndex, monthlyStats,
-            calculatedTips, masterTotalTips, masterTotalDistributed, masterTotalVariance, masterDisplayMode, formatCurrency, formatCurrencyBlanks, getHourInputClass, getDriverTipInputClass,
+            toggleEmployeeSite,
             addEmployee, removeEmployee, clearData, exportToExcel, undo, generateMockData, quickLogin,
             modal, closeModal, confirmModal, formatFirstName, isFullTimeId,
             loggedInUser, isManagerUnlocked, currentUserAccess, isDevUser, hasPermissionAccess, hasRoleAccess, pinInput, handleLogin, forceLock,
