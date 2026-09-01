@@ -167,7 +167,12 @@
                         <span class="hidden xl:inline font-semibold">Lock</span>
                     </button>
                     <div class="w-px h-6 bg-white/30 mx-0.5"></div>
-
+<!-- Vendor Roster Link Button -->
+<a href="vendor_roster.html" 
+   class="bg-indigo-600 hover:bg-indigo-700 text-xs sm:text-sm text-white font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow transition-colors">
+    <i data-lucide="truck" class="w-4 h-4"></i>
+    <span class="hidden sm:inline">Vendor Roster</span>
+</a>
                     <!-- DEV Mock Data Tool -->
                     <button v-if="isDevUser" @click="generateMockData" class="text-xs sm:text-sm bg-pink-500 hover:bg-pink-600 text-white font-bold px-3 py-1.5 rounded flex items-center gap-1 shadow transition-colors" title="DEV MODE: Inject 31 Days Mock Data">
                         <i data-lucide="wand-2" class="w-4 h-4"></i> <span class="hidden xl:inline">Mock Data</span>
