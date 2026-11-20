@@ -356,6 +356,10 @@
         <div class="subtitle">Organized by Distribution Partner with Full Contact, POS, Ordering & Payee Details</div>
         
         <div class="controls-container">
+            <a href="index.html" class="btn btn-secondary" style="text-decoration: none;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back to Tip Tracker
+            </a>
             <button class="btn" onclick="openModal()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 Add New Vendor
@@ -2958,8 +2962,48 @@
         const copySvgIcon = `<svg class="copy-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
 
         let currentFilter = 'all';
+        const CUSTOM_VENDORS_KEY = 'sundial_custom_vendors_v1';
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function loadSavedCustomVendors() {
+            try {
+                const raw = localStorage.getItem(CUSTOM_VENDORS_KEY);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                console.error('Failed to load custom vendors:', e);
+                return [];
+            }
+        }
+
+        function saveCustomVendors(list) {
+            try {
+                localStorage.setItem(CUSTOM_VENDORS_KEY, JSON.stringify(list));
+            } catch (e) {
+                console.error('Failed to save custom vendors:', e);
+            }
+        }
+
+        function removeCustomVendor(id, btnEl) {
+            const list = loadSavedCustomVendors().filter(v => v.id !== id);
+            saveCustomVendors(list);
+            const group = btnEl.closest('.distro-group');
+            if (group) group.remove();
+            applyFilters();
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const savedVendors = loadSavedCustomVendors();
+            savedVendors.forEach(v => renderCustomVendor(v, false));
             initializeCopyWrappers(document.body);
             initializeAccordions();
             autoCategorize();
@@ -3096,14 +3140,11 @@
         }
 
         function initializeAccordions() {
-            // Unbind existing to prevent double-firing on newly added items
             document.querySelectorAll('.distro-group h2').forEach(header => {
-                header.replaceWith(header.cloneNode(true));
-            });
-
-            // Re-bind click event for accordion
-            document.querySelectorAll('.distro-group h2').forEach(header => {
-                header.addEventListener('click', () => {
+                if (header.dataset.accordionBound) return;
+                header.dataset.accordionBound = "true";
+                header.addEventListener('click', (e) => {
+                    if (e.target.closest('.delete-custom-vendor-btn')) return;
                     const group = header.closest('.distro-group');
                     if (group) {
                         group.classList.toggle('collapsed');
@@ -3113,8 +3154,8 @@
         }
 
         function wrapCopy(text) {
-            const safeText = text.replace(/'/g, "\\'");
-            return `<span class="copy-wrapper" onclick="copyToClipboard('${safeText}', this)" title="Copy '${safeText}'">${text} ${copySvgIcon}<span class="copy-feedback">Copied!</span></span>`;
+            const attrSafe = escapeHtml(text);
+            return `<span class="copy-wrapper" data-copy="${attrSafe}" onclick="copyToClipboard(this.dataset.copy, this)" title="Copy '${attrSafe}'">${text} ${copySvgIcon}<span class="copy-feedback">Copied!</span></span>`;
         }
 
         function initializeCopyWrappers(rootElement) {
@@ -3152,7 +3193,27 @@
             });
         }
 
+        function showCopyFeedback(element) {
+            const feedback = element ? element.querySelector('.copy-feedback') : null;
+            if (feedback) {
+                feedback.classList.add('show');
+                setTimeout(() => feedback.classList.remove('show'), 1500);
+            }
+        }
+
         function copyToClipboard(text, element) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopyFeedback(element);
+                }).catch(() => {
+                    fallbackCopyToClipboard(text, element);
+                });
+            } else {
+                fallbackCopyToClipboard(text, element);
+            }
+        }
+
+        function fallbackCopyToClipboard(text, element) {
             const textArea = document.createElement("textarea");
             textArea.value = text;
             textArea.style.position = "fixed";
@@ -3161,11 +3222,7 @@
             textArea.select();
             try {
                 document.execCommand('copy');
-                const feedback = element.querySelector('.copy-feedback');
-                if (feedback) {
-                    feedback.classList.add('show');
-                    setTimeout(() => feedback.classList.remove('show'), 1500);
-                }
+                showCopyFeedback(element);
             } catch (err) {
                 console.error('Fallback: Oops, unable to copy', err);
             }
@@ -3215,78 +3272,73 @@
             brandIndex++;
         }
 
-        // Form submission logic
-        document.getElementById('addVendorForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const vName = document.getElementById('vName').value.trim();
-            const vLegacy = document.getElementById('vLegacy').value.trim();
-            const vBadgeText = document.getElementById('vBadgeText').value.trim();
-            const vBadgeColor = document.getElementById('vBadgeColor').value;
-            const vLocation = document.getElementById('vLocation').value.trim();
-            const vStatus = document.getElementById('vStatus').value.trim();
-            const vNotes = document.getElementById('vNotes').value.trim();
-            const vTier = document.getElementById('vTier').value; // Get target tier
-            
-            // Build the distributor header and notes
+        function renderCustomVendor(vendorObj, animateAndInit = true) {
+            const vId = escapeHtml(vendorObj.id || ('vendor_' + Date.now()));
+            const vName = escapeHtml(vendorObj.vName);
+            const vLegacy = escapeHtml(vendorObj.vLegacy);
+            const vBadgeText = escapeHtml(vendorObj.vBadgeText);
+            const vBadgeColor = escapeHtml(vendorObj.vBadgeColor || '#666');
+            const vLocation = escapeHtml(vendorObj.vLocation);
+            const vStatus = escapeHtml(vendorObj.vStatus);
+            const vNotes = escapeHtml(vendorObj.vNotes);
+            const vTier = vendorObj.vTier === 'nabis-distro-grid' ? 'nabis-distro-grid' : 'main-distro-grid';
+            const brands = Array.isArray(vendorObj.brands) ? vendorObj.brands : [];
+
             let headerHTML = `<h2>${vName}`;
             if (vBadgeText) {
                 headerHTML += ` <span style="color: ${vBadgeColor}; font-size: 0.75em; border: 1px solid ${vBadgeColor}; padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle;">${vBadgeText}</span>`;
             }
-            headerHTML += `</h2>`;
-            
+            headerHTML += ` <button type="button" class="delete-custom-vendor-btn" onclick="removeCustomVendor('${vId}', this)" title="Remove custom vendor" style="margin-left:auto;background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;border-radius:4px;padding:2px 6px;font-size:0.65em;cursor:pointer;">Delete</button></h2>`;
+
             let legacyHTML = vLegacy ? `<span class="legacy-name">${vLegacy}</span>` : '';
-            
+
             let contactParts = [];
             if (vLocation) contactParts.push(`Location: ${vLocation}`);
             if (vStatus) contactParts.push(`Status: ${vStatus}`);
             let contactStr = contactParts.join(' <span class="separator">|</span> ');
             let contactHTML = contactStr ? `<div class="distro-contact">${contactStr}</div>` : '';
-            
+
             let notesHTML = vNotes ? `<div class="distro-notes">Details: ${vNotes}</div>` : '';
-            
-            // Build the brands list
-            const brandEntries = document.querySelectorAll('.brand-entry');
+
             let ulHTML = '';
-            
-            if (brandEntries.length > 0) {
+            if (brands.length > 0) {
                 ulHTML += '<ul>';
-                brandEntries.forEach(entry => {
-                    const bName = entry.querySelector('.brand-name-input').value.trim();
-                    const treez = entry.querySelector('.treez-input').value.trim();
-                    const order = entry.querySelector('.order-input').value.trim();
-                    const payee = entry.querySelector('.payee-input').value.trim();
-                    const rep = entry.querySelector('.rep-input').value.trim();
-                    const email = entry.querySelector('.email-input').value.trim();
-                    
-                    if (!bName) return; // skip empty brands
-                    
+                brands.forEach(b => {
+                    const bName = escapeHtml(b.bName);
+                    const treez = escapeHtml(b.treez);
+                    const order = escapeHtml(b.order);
+                    const payee = escapeHtml(b.payee);
+                    const rep = escapeHtml(b.rep);
+                    const email = escapeHtml(b.email);
+
+                    if (!bName) return;
+
                     ulHTML += `<li><div class="brand-name">${bName}</div>`;
-                    
+
                     let detailsParts = [];
                     if (treez) detailsParts.push(`<span class="treez">Treez: ${treez}</span>`);
                     if (order) detailsParts.push(`<span class="order">Order From: ${order}</span>`);
                     if (payee) detailsParts.push(`<span class="payee">Payee: ${payee}</span>`);
-                    
+
                     if (detailsParts.length > 0) {
                         ulHTML += `<div class="details-row">${detailsParts.join(' <span class="separator">|</span> ')}</div>`;
                     }
-                    
+
                     let repParts = [];
                     if (rep) repParts.push(`Rep: ${rep}`);
                     if (email) repParts.push(`Email: ${email}`);
-                    
+
                     if (repParts.length > 0) {
                         ulHTML += `<div class="contact">${repParts.join(' <span class="separator">|</span> ')}</div>`;
                     }
-                    
+
                     ulHTML += `</li>`;
                 });
                 ulHTML += '</ul>';
             }
-            
+
             const newGroupHTML = `
-                <div class="distro-group">
+                <div class="distro-group" data-custom-id="${vId}">
                     ${headerHTML}
                     ${legacyHTML}
                     ${contactHTML}
@@ -3294,30 +3346,67 @@
                     ${ulHTML}
                 </div>
             `;
-            
-            // Create a temporary container to hold the new element so we can bind events to it
+
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = newGroupHTML.trim();
             const newElement = tempDiv.firstChild;
-            
-            // Prepend the new vendor to the targeted tier container
-            document.getElementById(vTier).prepend(newElement);
-            
-            // Initialize interactions on the new element
-            initializeCopyWrappers(newElement);
-            initializeAccordions();
-            autoCategorize();
-            applyFilters();
-            
-            // Show Success Notification
+
+            const container = document.getElementById(vTier);
+            if (container) container.prepend(newElement);
+
+            if (animateAndInit) {
+                initializeCopyWrappers(newElement);
+                initializeAccordions();
+                autoCategorize();
+                applyFilters();
+            }
+        }
+
+        // Form submission logic
+        document.getElementById('addVendorForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const brands = [];
+            document.querySelectorAll('.brand-entry').forEach(entry => {
+                const bName = entry.querySelector('.brand-name-input').value.trim();
+                if (!bName) return;
+                brands.push({
+                    bName,
+                    treez: entry.querySelector('.treez-input').value.trim(),
+                    order: entry.querySelector('.order-input').value.trim(),
+                    payee: entry.querySelector('.payee-input').value.trim(),
+                    rep: entry.querySelector('.rep-input').value.trim(),
+                    email: entry.querySelector('.email-input').value.trim()
+                });
+            });
+
+            const vendorObj = {
+                id: 'vendor_' + Date.now(),
+                vName: document.getElementById('vName').value.trim(),
+                vLegacy: document.getElementById('vLegacy').value.trim(),
+                vBadgeText: document.getElementById('vBadgeText').value.trim(),
+                vBadgeColor: document.getElementById('vBadgeColor').value,
+                vLocation: document.getElementById('vLocation').value.trim(),
+                vStatus: document.getElementById('vStatus').value.trim(),
+                vNotes: document.getElementById('vNotes').value.trim(),
+                vTier: document.getElementById('vTier').value,
+                brands
+            };
+
+            const saved = loadSavedCustomVendors();
+            saved.push(vendorObj);
+            saveCustomVendors(saved);
+
+            renderCustomVendor(vendorObj, true);
+
             const msgBox = document.getElementById('messageBox');
-            msgBox.innerHTML = `Successfully added <b>${vName}</b>!`;
+            msgBox.innerHTML = `Successfully added <b>${escapeHtml(vendorObj.vName)}</b>!`;
             msgBox.classList.add('show');
             setTimeout(() => msgBox.classList.remove('show'), 3000);
-            
+
             closeModal();
             document.getElementById('addVendorForm').reset();
-            document.getElementById('brandFieldsContainer').innerHTML = ''; // Clear brands
+            document.getElementById('brandFieldsContainer').innerHTML = '';
         });
 
         // Modal Controls
@@ -3356,6 +3445,12 @@
             };
 
             html2pdf().set(opt).from(element).save().then(() => {
+                document.body.classList.remove('is-exporting');
+                button.innerHTML = originalText;
+                button.style.opacity = '1';
+                button.disabled = false;
+            }).catch((err) => {
+                console.error('PDF generation failed:', err);
                 document.body.classList.remove('is-exporting');
                 button.innerHTML = originalText;
                 button.style.opacity = '1';

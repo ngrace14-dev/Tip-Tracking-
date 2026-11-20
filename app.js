@@ -23,8 +23,53 @@ const createEmptyDailyData = (daysCount) => {
     return Array.from({ length: daysCount }, () => ({ pool: null, hours: {}, driverTips: {} }));
 };
 
+const defaultInitialEmployees = [
+    { id: 'emp_0338', tempId: '0338', firstName: 'Nicholas', lastName: 'Benjamin', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_1759', tempId: '1759', firstName: 'Mackenna', lastName: 'Bradley', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_2197', tempId: '2197', firstName: 'Bryan', lastName: 'Brewer', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_8269', tempId: '8269', firstName: 'Mark', lastName: 'Brown', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_1356', tempId: '1356', firstName: 'Flora', lastName: 'Davis', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_5290', tempId: '5290', firstName: 'Michael', lastName: 'Fisk', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_8551', tempId: '8551', firstName: 'Madison', lastName: 'Gama', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_1857', tempId: '1857', firstName: 'Jenae', lastName: 'Hall', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_4998', tempId: '4998', firstName: 'Josiah', lastName: 'Hawkins', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_9419', tempId: '9419', firstName: 'Derrick', lastName: 'Hernandez-Wier', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_3605', tempId: '3605', firstName: 'David', lastName: 'Jones', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_1351', tempId: '1351', firstName: 'Nicole', lastName: 'Long', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_3958', tempId: '3958', firstName: 'Ashley', lastName: 'Montoya', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_5495', tempId: '5495', firstName: 'Christopher', lastName: 'Morrow', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_0399', tempId: '0399', firstName: 'Michael', lastName: 'Novelo', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_0451', tempId: '0451', firstName: 'Amanda', lastName: 'Petlock', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_1442', tempId: '1442', firstName: 'Alissia', lastName: 'Rico', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_7175', tempId: '7175', firstName: 'Christopher', lastName: 'Smith', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_2224', tempId: '2224', firstName: 'Cheyne', lastName: 'Tillemans', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_6039', tempId: '6039', firstName: 'Savannah', lastName: 'Vargas', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_0920', tempId: '0920', firstName: 'Kyle', lastName: 'Walter', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_1718', tempId: '1718', firstName: 'Gavin', lastName: 'Ward', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_6467', tempId: '6467', firstName: 'Hailey', lastName: 'Wilson', isDriver: false, isManager: false, sites: ['Redding'] },
+    { id: 'emp_4668', tempId: '4668', firstName: 'Taylor', lastName: 'Bell', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_8746', tempId: '8746', firstName: 'James', lastName: 'Burnett', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_0305', tempId: '0305', firstName: 'Dominic', lastName: 'Costello', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_7497', tempId: '7497', firstName: 'Robert', lastName: 'Ellison', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_3657', tempId: '3657', firstName: 'Victoria', lastName: 'Fletes', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_8201', tempId: '8201', firstName: 'Abigail', lastName: 'Grant', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_7529', tempId: '7529', firstName: 'Tristan', lastName: 'Kellum', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_8367', tempId: '8367', firstName: 'Amber', lastName: 'Molina', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_8786', tempId: '8786', firstName: 'Ashley', lastName: 'Molina', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_3031', tempId: '3031', firstName: 'Lillyan', lastName: 'Mora', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_9902', tempId: '9902', firstName: 'Haley', lastName: 'Noland', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_6369', tempId: '6369', firstName: 'Tyler', lastName: 'Ritter', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_6607', tempId: '6607', firstName: 'Emma', lastName: 'Rosser', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_3813', tempId: '3813', firstName: 'Savannah', lastName: 'Simpson', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_1522', tempId: '1522', firstName: 'Kelsey', lastName: 'Smith', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_7470', tempId: '7470', firstName: 'Kaylie', lastName: 'Thatcher', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_7312', tempId: '7312', firstName: 'Alyssa', lastName: 'Todd', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_3373', tempId: '3373', firstName: 'Shasta', lastName: 'Van Lent', isDriver: false, isManager: false, sites: ['Red Bluff'] },
+    { id: 'emp_9055', tempId: '9055', firstName: 'Nicole', lastName: 'Warnecke', isDriver: false, isManager: false, sites: ['Red Bluff'] }
+];
+
 const sanitizeEmployees = (empList) => {
-    if (!Array.isArray(empList)) return [];
+    if (!Array.isArray(empList) || empList.length === 0) return defaultInitialEmployees;
     const reddingIds = new Set(['emp_0338', 'emp_1759', 'emp_2197', 'emp_8269', 'emp_1356', 'emp_5290', 'emp_8551', 'emp_1857', 'emp_4998', 'emp_9419', 'emp_3605', 'emp_1351', 'emp_3958', 'emp_5495', 'emp_0399', 'emp_0451', 'emp_1442', 'emp_7175', 'emp_2224', 'emp_6039', 'emp_0920', 'emp_1718', 'emp_6467', '0338', '1759', '2197', '8269', '1356', '5290', '8551', '1857', '4998', '9419', '3605', '1351', '3958', '5495', '0399', '0451', '1442', '7175', '2224', '6039', '0920', '1718', '6467']);
     const redBluffIds = new Set(['emp_4668', 'emp_8746', 'emp_0305', 'emp_7497', 'emp_3657', 'emp_8201', 'emp_7529', 'emp_8367', 'emp_8786', 'emp_3031', 'emp_9902', 'emp_6369', 'emp_6607', 'emp_3813', 'emp_1522', 'emp_7470', 'emp_7312', 'emp_3373', 'emp_9055', '4668', '8746', '0305', '7497', '3657', '8201', '7529', '8367', '8786', '3031', '9902', '6369', '6607', '3813', '1522', '7470', '7312', '3373', '9055']);
 
@@ -256,16 +301,126 @@ const app = createApp({
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
 
-        const isCurrentPayPeriodMonth = (mIdx) => {
+        const isCurrentPayPeriodMonth = (yearOrMIdx, maybeMIdx) => {
             if (!currentPayPeriod.value) return false;
+            const targetYear = maybeMIdx !== undefined ? String(yearOrMIdx) : String(selectedArchiveYear.value);
+            const targetMonth = maybeMIdx !== undefined ? Number(maybeMIdx) : Number(yearOrMIdx);
             const [year, monthStr] = currentPayPeriod.value.split('-');
-            return year === selectedArchiveYear.value && parseInt(monthStr, 10) === mIdx;
+            return year === targetYear && parseInt(monthStr, 10) === targetMonth;
         };
 
-        const activeYearDisplayData = computed(() => {
-            const year = selectedArchiveYear.value;
+        const sortedAllEmployees = computed(() => {
+            return [...employees.value].sort((a, b) => {
+                const lastCmp = (a.lastName || '').localeCompare(b.lastName || '', undefined, { sensitivity: 'base' });
+                if (lastCmp !== 0) return lastCmp;
+                return (a.firstName || '').localeCompare(b.firstName || '', undefined, { sensitivity: 'base' });
+            });
+        });
+
+        const sortedEmployees = computed(() => {
+            return sortedAllEmployees.value.filter(emp => emp.sites && Array.isArray(emp.sites) && emp.sites.includes(activeSite.value));
+        });
+
+        const driverEmployees = computed(() => sortedEmployees.value.filter(e => e.isDriver));
+
+        const getDailyActiveEmployees = (dayIndex) => {
+            const day = dailyData.value[dayIndex];
+            if (!day) return [];
+            return sortedEmployees.value.filter(emp => (Number(day.hours[emp.id]) || 0) > 0);
+        };
+
+        const getDailyActiveDrivers = (dayIndex) => {
+            const day = dailyData.value[dayIndex];
+            if (!day) return [];
+            return driverEmployees.value.filter(drv => (Number(day.driverTips[drv.id]) || 0) > 0 || (Number(day.hours[drv.id]) || 0) > 0);
+        };
+
+        const roundToQuarter = (num) => Math.round(num * 4) / 4;
+
+        const calculatedTips = computed(() => {
+            return dailyData.value.map(day => {
+                const pool = parseFloat(day?.pool) || 0;
+                let totalHours = 0;
+                sortedEmployees.value.forEach(emp => {
+                    if (!emp.isManager) totalHours += parseFloat(day?.hours?.[emp.id]) || 0;
+                });
+                const rate = totalHours > 0 ? pool / totalHours : 0;
+
+                let totalDistributed = 0;
+                const tips = {};
+                sortedEmployees.value.forEach(emp => {
+                    const hrs = parseFloat(day?.hours?.[emp.id]) || 0;
+                    if (hrs > 0 && !emp.isManager) {
+                        const roundedTip = roundToQuarter(hrs * rate);
+                        tips[emp.id] = roundedTip;
+                        totalDistributed += roundedTip;
+                    } else {
+                        tips[emp.id] = 0;
+                    }
+                });
+                return {
+                    totalHours,
+                    rate,
+                    hourlyRate: rate,
+                    tips,
+                    exactPayouts: tips,
+                    roundedPayouts: tips,
+                    totalDistributed,
+                    variance: pool > 0 ? (pool - totalDistributed) : 0
+                };
+            });
+        });
+
+        const masterTotalTips = computed(() => dailyData.value.reduce((sum, day) => sum + (parseFloat(day.pool) || 0), 0));
+        const masterTotalDistributed = computed(() => calculatedTips.value.reduce((sum, day) => sum + day.totalDistributed, 0));
+        const masterTotalVariance = computed(() => masterTotalTips.value - masterTotalDistributed.value);
+
+        const monthlyStats = computed(() => {
+            const finalPayouts = {};
+            sortedEmployees.value.forEach(emp => {
+                let empTotal = 0;
+                dailyData.value.forEach((day, dayIndex) => {
+                    empTotal += calculatedTips.value[dayIndex]?.tips?.[emp.id] || 0;
+                    empTotal += parseFloat(day?.driverTips?.[emp.id]) || 0;
+                });
+                finalPayouts[emp.id] = empTotal;
+            });
+            return {
+                finalPayouts,
+                totalDistributed: masterTotalDistributed.value,
+                variance: masterTotalVariance.value
+            };
+        });
+
+        const formatCurrency = (value, showSign = false) => {
+            if (value === null || value === undefined || isNaN(value)) return '$ 0.00';
+            const num = Math.abs(Number(value));
+            const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+            if (showSign && value < 0) return `$ (${num.toFixed(2)})`;
+            if (showSign && value > 0) return `+ ${formatted.replace('$', '$ ')}`;
+            if (value < 0) return `- ${formatted.replace('$', '$ ')}`;
+            return formatted.replace('$', '$ ');
+        };
+
+        const formatCurrencyBlanks = (value, isVariance = false) => {
+            if (!value || value === 0) return isVariance ? '$ -' : '$  -';
+            return formatCurrency(value, isVariance);
+        };
+
+        const getHourInputClass = (hours) => {
+            if (hours === undefined || hours === null || hours === '' || parseFloat(hours) === 0) return 'bg-white';
+            return 'bg-input-yellow';
+        };
+
+        const getDriverTipInputClass = (tip) => {
+            if (tip === undefined || tip === null || tip === '' || parseFloat(tip) === 0) return 'bg-white';
+            return 'bg-input-yellow';
+        };
+
+        const getYearDisplayData = (year) => {
+            const yrStr = String(year);
             const dataMap = {};
-            
+
             const liveHours = {};
             employees.value.forEach(emp => {
                 let h = 0;
@@ -276,13 +431,13 @@ const app = createApp({
             });
 
             for (let m = 1; m <= 12; m++) {
-                if (yearlyArchives.value[year]?.[m]) {
-                    dataMap[m] = yearlyArchives.value[year][m];
+                if (yearlyArchives.value[yrStr]?.[m]) {
+                    dataMap[m] = yearlyArchives.value[yrStr][m];
                 } else {
                     let isLiveMonth = false;
                     if (currentPayPeriod.value) {
                         const [currYr, currMStr] = currentPayPeriod.value.split('-');
-                        if (currYr === year && parseInt(currMStr, 10) === m) {
+                        if (currYr === yrStr && parseInt(currMStr, 10) === m) {
                             isLiveMonth = true;
                         }
                     }
@@ -312,7 +467,9 @@ const app = createApp({
                 }
             }
             return dataMap;
-        });
+        };
+
+        const activeYearDisplayData = computed(() => getYearDisplayData(selectedArchiveYear.value));
 
         const activeYearSummary = computed(() => {
             let totalPool = 0;
@@ -473,14 +630,34 @@ const app = createApp({
             });
         };
 
+        const viewArchivedMonthDetail = (year, monthIdx) => {
+            const mData = getMonthDisplayData(year, monthIdx);
+            if (mData && mData.dailyData && mData.dailyData.length > 0) {
+                selectedArchivedMonthDetail.value = { year, monthIdx, data: mData };
+                archivedMonthDisplayMode.value = 'tips';
+                refreshIcons();
+            } else {
+                showAlert("Detailed daily tracking is not available for this archived month.");
+            }
+        };
+
         const closeArchivedMonthDetail = () => {
             selectedArchivedMonthDetail.value = null;
         };
 
-        const showAlert = (msg) => { modal.value = { isOpen: true, type: 'alert', message: msg, onConfirm: null }; nextTick(() => lucide.createIcons()); };
-        const showConfirm = (msg, callback) => { modal.value = { isOpen: true, type: 'confirm', message: msg, onConfirm: callback }; nextTick(() => lucide.createIcons()); };
-        const closeModal = () => { modal.value.isOpen = false; };
-        const confirmModal = () => { if (modal.value.onConfirm) modal.value.onConfirm(); closeModal(); };
+        const showAlert = (msg) => { modal.value = { isOpen: true, type: 'alert', message: msg, onConfirm: null }; refreshIcons(); };
+        const showConfirm = (msg, callback) => { modal.value = { isOpen: true, type: 'confirm', message: msg, onConfirm: callback }; refreshIcons(); };
+        const closeModal = () => {
+            modal.value.isOpen = false;
+            modal.value.onConfirm = null;
+        };
+        const confirmModal = () => {
+            const callback = modal.value.onConfirm;
+            closeModal();
+            if (callback) {
+                setTimeout(() => { callback(); }, 50);
+            }
+        };
 
         const logAction = (action, details) => {
             if (!loggedInUser.value) return; 
@@ -1113,6 +1290,17 @@ const app = createApp({
             importOCR(mockEvent);
         };
 
+        const loadExternalScript = (src) => {
+            return new Promise((resolve, reject) => {
+                if (document.querySelector(`script[src="${src}"]`)) return resolve();
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = () => resolve();
+                s.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.head.appendChild(s);
+            });
+        };
+
         const importOCR = async (event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -1129,6 +1317,9 @@ const app = createApp({
                 let imageSrc = '';
                 if (file.type === 'application/pdf') {
                     ocrStatus.value = 'Rendering PDF...';
+                    if (!window.pdfjsLib) {
+                        await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+                    }
                     if (window.pdfjsLib) {
                         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
                     }
@@ -1147,7 +1338,10 @@ const app = createApp({
                 }
 
                 ocrStatus.value = 'Initializing AI Scanner...';
-                const worker = await Tesseract.createWorker({
+                if (!window.Tesseract) {
+                    await loadExternalScript('https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js');
+                }
+                const worker = await window.Tesseract.createWorker({
                     logger: m => {
                         if (m.status === 'recognizing text') {
                             ocrProgress.value = m.progress;
@@ -1326,283 +1520,57 @@ const app = createApp({
             finalizeLogin(systemUsers.value[basePin], basePin);
         };
 
-        const formatCurrency = (value, showSign = false) => {
-            if (value === null || value === undefined || isNaN(value)) return '$ 0.00';
-            const num = Math.abs(value);
-            const formatted = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
-            if (showSign && value < 0) return `$ (${num.toFixed(2)})`; 
-            return formatted.replace('$', '$ ');
-        };
-
-        const formatCurrencyBlanks = (value, isVariance = false) => {
-            if (!value || value === 0) return isVariance ? '$ -' : '$  -';
-            return formatCurrency(value, isVariance);
-        };
-
-        const getHourInputClass = (hours) => {
-            if (hours === undefined || hours === null || hours === '' || parseFloat(hours) === 0) return 'bg-white';
-            return 'bg-input-yellow';
-        };
-
-        const getDriverTipInputClass = (tip) => {
-            if (tip === undefined || tip === null || tip === '' || parseFloat(tip) === 0) return 'bg-white';
-            return 'bg-input-yellow';
-        };
-
-        const sortedEmployees = computed(() => {
-            return employees.value
-                .filter(emp => {
-                    if (!emp.sites || !Array.isArray(emp.sites) || emp.sites.length === 0) return false;
-                    return emp.sites.includes(activeSite.value);
-                })
-                .sort((a, b) => {
-                    const lastCmp = a.lastName.localeCompare(b.lastName, undefined, { sensitivity: 'base' });
-                    if (lastCmp !== 0) return lastCmp;
-                    return a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' });
-                });
-        });
-        const driverEmployees = computed(() => sortedEmployees.value.filter(e => e.isDriver));
-
-        const roundToQuarter = (num) => Math.round(num * 4) / 4;
-
-        const calculatedTips = computed(() => {
-            return dailyData.value.map(day => {
-                const pool = parseFloat(day?.pool) || 0;
-                let totalHours = 0;
-                sortedEmployees.value.forEach(emp => {
-                    if (!emp.isManager) totalHours += parseFloat(day?.hours?.[emp.id]) || 0;
-                });
-                const rate = totalHours > 0 ? pool / totalHours : 0;
-                
-                let totalDistributed = 0;
-                const tips = {};
-                sortedEmployees.value.forEach(emp => {
-                    const hrs = parseFloat(day?.hours?.[emp.id]) || 0;
-                    if (hrs > 0 && !emp.isManager) {
-                        const roundedTip = roundToQuarter(hrs * rate);
-                        tips[emp.id] = roundedTip;
-                        totalDistributed += roundedTip;
-                    } else {
-                        tips[emp.id] = 0;
-                    }
-                });
-                return { totalHours, rate, tips, totalDistributed, variance: pool > 0 ? (pool - totalDistributed) : 0 };
-            });
-        });
-
-        const masterTotalTips = computed(() => dailyData.value.reduce((sum, day) => sum + (parseFloat(day.pool) || 0), 0));
-        const masterTotalDistributed = computed(() => calculatedTips.value.reduce((sum, day) => sum + day.totalDistributed, 0));
-        const masterTotalVariance = computed(() => masterTotalTips.value - masterTotalDistributed.value);
-
-        const monthlyStats = computed(() => {
-            const finalPayouts = {};
-            sortedEmployees.value.forEach(emp => {
-                let empTotal = 0;
-                dailyData.value.forEach((day, dayIndex) => {
-                    empTotal += calculatedTips.value[dayIndex]?.tips?.[emp.id] || 0;
-                    empTotal += parseFloat(day?.driverTips?.[emp.id]) || 0;
-                });
-                finalPayouts[emp.id] = empTotal;
-            });
-            return { finalPayouts };
-        });
-
-        const activeYearDisplayData = computed(() => {
-            const year = selectedArchiveYear.value;
-            const dataMap = {};
-            
-            const liveHours = {};
-            sortedEmployees.value.forEach(emp => {
-                let h = 0;
-                dailyData.value.forEach(day => {
-                    h += parseFloat(day?.hours?.[emp.id]) || 0;
-                });
-                liveHours[emp.id] = h;
-            });
-
-            for (let m = 1; m <= 12; m++) {
-                if (yearlyArchives.value[year]?.[m]) {
-                    dataMap[m] = yearlyArchives.value[year][m];
-                } else {
-                    let isLiveMonth = false;
-                    if (currentPayPeriod.value) {
-                        const [currYr, currMStr] = currentPayPeriod.value.split('-');
-                        if (currYr === year && parseInt(currMStr, 10) === m) {
-                            isLiveMonth = true;
-                        }
-                    }
-
-                    if (isLiveMonth) {
-                        dataMap[m] = {
-                            pool: masterTotalTips.value,
-                            totalDistributed: masterTotalDistributed.value,
-                            variance: masterTotalVariance.value,
-                            payouts: monthlyStats.value.finalPayouts,
-                            hours: liveHours,
-                            dailyData: dailyData.value,
-                            calculatedTips: calculatedTips.value,
-                            isLive: true
-                        };
-                    } else {
-                        dataMap[m] = {
-                            pool: 0,
-                            totalDistributed: 0,
-                            variance: 0,
-                            payouts: {},
-                            hours: {},
-                            dailyData: [],
-                            calculatedTips: []
-                        };
-                    }
+        const quickLogin = (pinOrRole) => {
+            let pin = pinOrRole;
+            let user = systemUsers.value[pinOrRole];
+            if (!user) {
+                const entry = Object.entries(systemUsers.value).find(([k, u]) => u.role === pinOrRole);
+                if (entry) {
+                    pin = entry[0];
+                    user = entry[1];
                 }
             }
-            return dataMap;
-        });
-
-        const activeYearEmployeeYTD = computed(() => {
-            const totals = {};
-            sortedEmployees.value.forEach(emp => {
-                let tips = 0;
-                let hours = 0;
-                for (let m = 1; m <= 12; m++) {
-                    const mData = activeYearDisplayData.value[m];
-                    tips += mData.payouts?.[emp.id] || 0;
-                    hours += mData.hours?.[emp.id] || 0;
-                }
-                totals[emp.id] = { tips, hours };
-            });
-            return totals;
-        });
-
-                    myData.push([]);
-                    const myVarianceRow = ['Monthly Rounding Variance', ''];
-                    for (let m = 1; m <= 12; m++) {
-                        myVarianceRow.push(getMonthDisplayData(year, m).variance || 0);
-                    }
-                    myVarianceRow.push(summary.totalVariance);
-                    myVarianceRow.push('');
-                    myData.push(myVarianceRow);
-
-                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(myData), `Year ${year}`);
-
-                    for (let m = 1; m <= 12; m++) {
-                        const mDataObj = getMonthDisplayData(year, m);
-                        
-                        if (mDataObj && mDataObj.dailyData && mDataObj.dailyData.length > 0 && (mDataObj.isLive || yearlyArchives.value[year]?.[m])) {
-                            const mName = getMonthName(m);
-                            
-                            const mDailyData = [
-                                [`RR Sundial ${activeSite.value} LLC - ${mName} ${year} Detailed Daily Breakdown`]
-                            ];
-
-                            mDailyData.push([]);
-                            mDailyData.push(['--- TIP DISTRIBUTION ($) ---']);
-                            const mTipsHeader = ['Last Name', 'First Name'];
-                            for (let d = 1; d <= 31; d++) mTipsHeader.push(`Day ${d}`);
-                            mTipsHeader.push('Month Total');
-                            mDailyData.push(mTipsHeader);
-
-                            const mDailyPoolRow = ['Daily Tip Pool ->', ''];
-                            for (let d = 1; d <= 31; d++) {
-                                mDailyPoolRow.push(mDataObj.dailyData[d-1]?.pool || 0);
-                            }
-                            mDailyPoolRow.push(mDataObj.pool || 0);
-                            mDailyData.push(mDailyPoolRow);
-
-                            sortedEmployees.value.forEach(emp => {
-                                const empRow = [emp.lastName, formatFirstName(emp)];
-                                for (let d = 1; d <= 31; d++) {
-                                    empRow.push(mDataObj.calculatedTips?.[d-1]?.tips?.[emp.id] || 0);
-                                }
-                                empRow.push(mDataObj.payouts?.[emp.id] || 0);
-                                mDailyData.push(empRow);
-                            });
-
-                            const mVarRow = ['Daily Variance ->', ''];
-                            for (let d = 1; d <= 31; d++) {
-                                mVarRow.push(mDataObj.calculatedTips?.[d-1]?.variance || 0);
-                            }
-                            mVarRow.push(mDataObj.variance || 0);
-                            mDailyData.push(mVarRow);
-
-                            mDailyData.push([]);
-                            mDailyData.push([]);
-                            mDailyData.push(['--- HOURS WORKED (h) ---']);
-                            const mHoursHeader = ['Last Name', 'First Name'];
-                            for (let d = 1; d <= 31; d++) mHoursHeader.push(`Day ${d}`);
-                            mHoursHeader.push('Month Total');
-                            mDailyData.push(mHoursHeader);
-
-                            sortedEmployees.value.forEach(emp => {
-                                const empRow = [emp.lastName, formatFirstName(emp)];
-                                let monthHours = 0;
-                                for (let d = 1; d <= 31; d++) {
-                                    const h = parseFloat(mDataObj.dailyData[d-1]?.hours?.[emp.id]) || 0;
-                                    empRow.push(h);
-                                    monthHours += h;
-                                }
-                                empRow.push(monthHours);
-                                mDailyData.push(empRow);
-                            });
-
-                            const monthDrivers = sortedEmployees.value.filter(e => e.isDriver);
-                            if (monthDrivers.length > 0) {
-                                mDailyData.push([]);
-                                mDailyData.push([]);
-                                mDailyData.push(['--- DRIVER DIRECT TIPS ($) ---']);
-                                const mDrvHeader = ['Last Name', 'First Name'];
-                                for (let d = 1; d <= 31; d++) mDrvHeader.push(`Day ${d}`);
-                                mDrvHeader.push('Month Total');
-                                mDailyData.push(mDrvHeader);
-
-                                monthDrivers.forEach(drv => {
-                                    const drvRow = [drv.lastName, formatFirstName(drv)];
-                                    let monthDrvTips = 0;
-                                    for (let d = 1; d <= 31; d++) {
-        const switchSite = async (site) => {
-            if (activeSite.value === site) return;
-            
-            // Security check: restrict users assigned to only one site from viewing other stores
-            if (isManagerUnlocked.value && currentUserAccess.value.length > 0 && !currentUserAccess.value.includes(site)) {
-                return showAlert(`Access Restricted: Your account does not have permission to access ${site}.`);
+            if (user) {
+                finalizeLogin(user, pin);
             }
-            
-            // 1. Immediately save current site data before switching
-            isSwitchingSites = true;
-            await saveState();
-            
-            // 2. Set new active site & reset tab to master
-            activeSite.value = site;
-            activeTab.value = 'master';
-            localStorage.setItem('sundial-last-site', activeSite.value);
-            logAction("Switched Site", `Switched location view to ${site}`);
-            
-            // 3. Load the target site's independent workspace
-            loadSiteData();
+        };
+
+        const saveGlobalSettings = async () => {
+            if (!isDbConnected.value || !auth.currentUser) return;
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), {
+                    systemUsers: systemUsers.value,
+                    extensions: extensions.value,
+                    employees: employees.value
+                }, { merge: true });
+            } catch (e) {
+                console.error("Global save error:", e);
+            }
         };
 
         const addEmployee = () => {
             if (!newEmp.value.first.trim() || !newEmp.value.last.trim()) return showAlert("Please enter both a first and last name.");
-            
+
             const assignedSites = [];
             if (newEmp.value.siteRB) assignedSites.push('Red Bluff');
             if (newEmp.value.siteRD) assignedSites.push('Redding');
-            
+
             if (assignedSites.length === 0) {
                 return showAlert("Please select at least one site location for this employee.");
             }
 
             employees.value.push({
                 id: 'emp_' + Date.now() + Math.random().toString(36).substring(2, 9),
-                firstName: newEmp.value.first.trim(), 
-                lastName: newEmp.value.last.trim(), 
-                isDriver: newEmp.value.isDriver, 
+                firstName: newEmp.value.first.trim(),
+                lastName: newEmp.value.last.trim(),
+                isDriver: newEmp.value.isDriver,
                 isManager: newEmp.value.isManager,
                 tempId: newEmp.value.tempId ? newEmp.value.tempId.trim() : '',
                 sites: assignedSites
             });
             logAction("Added Employee", `Added ${newEmp.value.first.trim()} ${newEmp.value.last.trim()} to store roster (${assignedSites.join(', ')}).`);
             newEmp.value = { first: '', last: '', tempId: '', isDriver: false, isManager: false, siteRB: true, siteRD: true };
+            saveGlobalSettings();
             saveState();
         };
 
@@ -1619,31 +1587,317 @@ const app = createApp({
                 emp.sites.push(site);
             }
             logAction("Updated Employee Site Access", `Updated site access for ${emp.firstName} ${emp.lastName}: ${emp.sites.join(', ')}`);
+            saveGlobalSettings();
             saveState();
         };
 
-        const removeEmployee = (id) => { 
-        const syncDataToExtension = () => {
-            if (activeExtensionIframe.value && activeExtensionIframe.value.contentWindow) {
-                const cleanEmployees = JSON.parse(JSON.stringify(sortedEmployees.value));
-                const cleanDailyData = JSON.parse(JSON.stringify(dailyData.value));
-                
-                const payload = {
-                    type: 'SUNDIAL_DATA_SYNC',
-                    site: activeSite.value,
-                    period: formattedPayPeriod.value,
-                    employees: cleanEmployees,
-                    data: cleanDailyData,
-                    calculatedTips: JSON.parse(JSON.stringify(calculatedTips.value)),
-                    masterTotalTips: masterTotalTips.value,
-                    masterTotalDistributed: masterTotalDistributed.value,
-                    masterTotalVariance: masterTotalVariance.value,
-                    monthlyPayouts: JSON.parse(JSON.stringify(monthlyStats.value.finalPayouts)),
-                    yearlyArchives: JSON.parse(JSON.stringify(yearlyArchives.value))
+        const removeEmployee = (id) => {
+            const target = employees.value.find(e => e.id === id);
+            showConfirm(`Remove ${target ? target.firstName + ' ' + target.lastName : 'this employee'} from the roster?`, () => {
+                employees.value = employees.value.filter(e => e.id !== id);
+                logAction("Removed Employee", `Removed ${target ? target.firstName + ' ' + target.lastName : id} from store roster.`);
+                saveGlobalSettings();
+                saveState();
+            });
+        };
+
+        const clearData = () => {
+            showConfirm(`Are you sure you want to wipe all hours and tip pools for the current active pay period (${formattedPayPeriod.value})?`, () => {
+                dailyData.value = createEmptyDailyData(31);
+                logAction("Cleared Month Data", `Wiped all active hours and tip pools for ${formattedPayPeriod.value}.`);
+                saveState();
+            });
+        };
+
+        const nukeAllData = () => {
+            showConfirm(`CRITICAL WARNING: This will permanently erase ALL current daily data AND ALL historical multi-year archives for ${activeSite.value}. Are you absolutely sure?`, () => {
+                dailyData.value = createEmptyDailyData(31);
+                yearlyArchives.value = {};
+                auditLogs.value = [];
+                logAction("System Nuke", `Dev completely wiped all live and archived data for ${activeSite.value}.`);
+                saveState();
+                showAlert("All site data and archives have been reset.");
+            });
+        };
+
+        const downloadExcelFile = (wb, fileName) => {
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            document.body.appendChild(a);
+            a.style.display = 'none';
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }, 1000);
+        };
+
+        const buildDailyBreakdownSheet = (titleText, daysArray, calcTipsArray, payoutsMap, totalPoolVal, totalVarianceVal) => {
+            const mDailyData = [[titleText], [], ['--- TIP DISTRIBUTION ($) ---']];
+            const mTipsHeader = ['Last Name', 'First Name'];
+            for (let d = 1; d <= 31; d++) mTipsHeader.push(`Day ${d}`);
+            mTipsHeader.push('Month Total');
+            mDailyData.push(mTipsHeader);
+
+            const mDailyPoolRow = ['Daily Tip Pool ->', ''];
+            for (let d = 1; d <= 31; d++) {
+                mDailyPoolRow.push(daysArray[d - 1]?.pool || 0);
+            }
+            mDailyPoolRow.push(totalPoolVal || 0);
+            mDailyData.push(mDailyPoolRow);
+
+            sortedEmployees.value.forEach(emp => {
+                const empRow = [emp.lastName, formatFirstName(emp)];
+                for (let d = 1; d <= 31; d++) {
+                    empRow.push(calcTipsArray?.[d - 1]?.tips?.[emp.id] || 0);
+                }
+                empRow.push(payoutsMap?.[emp.id] || 0);
+                mDailyData.push(empRow);
+            });
+
+            const mVarRow = ['Daily Variance ->', ''];
+            for (let d = 1; d <= 31; d++) {
+                mVarRow.push(calcTipsArray?.[d - 1]?.variance || 0);
+            }
+            mVarRow.push(totalVarianceVal || 0);
+            mDailyData.push(mVarRow);
+
+            mDailyData.push([], [], ['--- HOURS WORKED (h) ---']);
+            const mHoursHeader = ['Last Name', 'First Name'];
+            for (let d = 1; d <= 31; d++) mHoursHeader.push(`Day ${d}`);
+            mHoursHeader.push('Month Total');
+            mDailyData.push(mHoursHeader);
+
+            sortedEmployees.value.forEach(emp => {
+                const empRow = [emp.lastName, formatFirstName(emp)];
+                let monthHours = 0;
+                for (let d = 1; d <= 31; d++) {
+                    const h = parseFloat(daysArray[d - 1]?.hours?.[emp.id]) || 0;
+                    empRow.push(h);
+                    monthHours += h;
+                }
+                empRow.push(monthHours);
+                mDailyData.push(empRow);
+            });
+
+            const monthDrivers = sortedEmployees.value.filter(e => e.isDriver);
+            if (monthDrivers.length > 0) {
+                mDailyData.push([], [], ['--- DRIVER DIRECT TIPS ($) ---']);
+                const mDrvHeader = ['Last Name', 'First Name'];
+                for (let d = 1; d <= 31; d++) mDrvHeader.push(`Day ${d}`);
+                mDrvHeader.push('Month Total');
+                mDailyData.push(mDrvHeader);
+
+                monthDrivers.forEach(drv => {
+                    const drvRow = [drv.lastName, formatFirstName(drv)];
+                    let monthDrvTips = 0;
+                    for (let d = 1; d <= 31; d++) {
+                        const dt = parseFloat(daysArray[d - 1]?.driverTips?.[drv.id]) || 0;
+                        drvRow.push(dt);
+                        monthDrvTips += dt;
+                    }
+                    drvRow.push(monthDrvTips);
+                    mDailyData.push(drvRow);
+                });
+            }
+            return mDailyData;
+        };
+
+        const exportToExcel = () => {
+            try {
+                const wb = XLSX.utils.book_new();
+                const wsData = [
+                    [`RR Sundial ${activeSite.value} LLC - Tip Tracker`],
+                    [`Pay Period: ${formattedPayPeriod.value}`],
+                    ['Total Tip Pool:', masterTotalTips.value, 'Total Distributed:', masterTotalDistributed.value],
+                    [],
+                    ['Last Name', 'First Name', 'Final Total Payout ($)']
+                ];
+                sortedEmployees.value.forEach(emp => {
+                    wsData.push([emp.lastName, formatFirstName(emp), monthlyStats.value.finalPayouts[emp.id] || 0]);
+                });
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Tips Summary');
+
+                const breakdownData = buildDailyBreakdownSheet(
+                    `RR Sundial ${activeSite.value} LLC - ${formattedPayPeriod.value} Detailed Daily Breakdown`,
+                    dailyData.value,
+                    calculatedTips.value,
+                    monthlyStats.value.finalPayouts,
+                    masterTotalTips.value,
+                    masterTotalVariance.value
+                );
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(breakdownData), 'Detailed Daily Breakdown');
+
+                downloadExcelFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_${currentPayPeriod.value}.xlsx`);
+            } catch (e) {
+                console.error(e);
+                showAlert("Failed to export Excel workbook.");
+            }
+        };
+
+        const exportHistoricalLedger = () => {
+            try {
+                const wb = XLSX.utils.book_new();
+                const yearsToExport = availableArchiveYears.value;
+
+                yearsToExport.forEach(year => {
+                    const yrDisplayData = getYearDisplayData(year);
+                    const yrSummary = getYearlySummary(year);
+                    const myData = [
+                        [`RR Sundial ${activeSite.value} LLC - Multi-Year Master Ledger (${year})`],
+                        ['YTD Total Tip Pool:', yrSummary.totalPool, 'YTD Distributed:', yrSummary.totalDistributed],
+                        []
+                    ];
+
+                    const myHeader = ['Last Name', 'First Name'];
+                    for (let m = 1; m <= 12; m++) myHeader.push(getMonthName(m));
+                    myHeader.push('YTD Total Tips ($)', 'YTD Total Hours (h)');
+                    myData.push(myHeader);
+
+                    const myPoolRow = ['Monthly Tip Pool ->', ''];
+                    for (let m = 1; m <= 12; m++) {
+                        myPoolRow.push(yrDisplayData[m]?.pool || 0);
+                    }
+                    myPoolRow.push(yrSummary.totalPool, '');
+                    myData.push(myPoolRow);
+
+                    sortedEmployees.value.forEach(emp => {
+                        const empRow = [emp.lastName, formatFirstName(emp)];
+                        let ytdTips = 0;
+                        let ytdHours = 0;
+                        for (let m = 1; m <= 12; m++) {
+                            const mTips = yrDisplayData[m]?.payouts?.[emp.id] || 0;
+                            const mHrs = yrDisplayData[m]?.hours?.[emp.id] || 0;
+                            empRow.push(mTips);
+                            ytdTips += mTips;
+                            ytdHours += mHrs;
+                        }
+                        empRow.push(ytdTips, ytdHours);
+                        myData.push(empRow);
+                    });
+
+                    myData.push([]);
+                    const myVarianceRow = ['Monthly Rounding Variance', ''];
+                    for (let m = 1; m <= 12; m++) {
+                        myVarianceRow.push(yrDisplayData[m]?.variance || 0);
+                    }
+                    myVarianceRow.push(yrSummary.totalVariance, '');
+                    myData.push(myVarianceRow);
+
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(myData), `Year ${year}`);
+
+                    for (let m = 1; m <= 12; m++) {
+                        const mDataObj = yrDisplayData[m];
+                        if (mDataObj && mDataObj.dailyData && mDataObj.dailyData.length > 0 && (mDataObj.isLive || yearlyArchives.value[year]?.[m])) {
+                            const mName = getMonthName(m);
+                            const mDailyData = buildDailyBreakdownSheet(
+                                `RR Sundial ${activeSite.value} LLC - ${mName} ${year} Detailed Daily Breakdown`,
+                                mDataObj.dailyData,
+                                mDataObj.calculatedTips,
+                                mDataObj.payouts,
+                                mDataObj.pool,
+                                mDataObj.variance
+                            );
+                            const sheetName = `${mName.slice(0, 3)} ${year}`.slice(0, 31);
+                            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mDailyData), sheetName);
+                        }
+                    }
+                });
+                downloadExcelFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_Historical_Master_Ledger.xlsx`);
+            } catch (e) {
+                console.error(e);
+                showAlert("Failed to export Historical Master Ledger.");
+            }
+        };
+        const generateCustomDateReport = () => {
+            if (!payrollStartDate.value || !payrollEndDate.value) {
+                return showAlert("Please select both a start date and an end date.");
+            }
+
+            try {
+                const dStart = new Date(payrollStartDate.value + 'T00:00:00');
+                const dEnd = new Date(payrollEndDate.value + 'T23:59:59');
+
+                const wb = XLSX.utils.book_new();
+                const wsData = [
+                    [`RR Sundial ${activeSite.value} LLC - Payroll / Custom Date Report`],
+                    [`Date Range: ${payrollStartDate.value} to ${payrollEndDate.value}`],
+                    [],
+                    ['Last Name', 'First Name', 'Total Hours Worked', 'Total Tips Earned ($)']
+                ];
+
+                const empTotals = {};
+                sortedEmployees.value.forEach(emp => { empTotals[emp.id] = { hours: 0, tips: 0 }; });
+
+                const processMonthData = (year, month, mData) => {
+                    if (!mData || !mData.dailyData) return;
+                    for (let d = 0; d < mData.dailyData.length; d++) {
+                        const currentDay = new Date(year, month - 1, d + 1);
+                        if (currentDay >= dStart && currentDay <= dEnd) {
+                            const dayObj = mData.dailyData[d];
+                            const calcObj = mData.calculatedTips ? mData.calculatedTips[d] : null;
+
+                            if (dayObj && dayObj.hours) {
+                                Object.keys(dayObj.hours).forEach(empId => {
+                                    if (empTotals[empId]) empTotals[empId].hours += parseFloat(dayObj.hours[empId]) || 0;
+                                });
+                            }
+                            if (calcObj && calcObj.tips) {
+                                Object.keys(calcObj.tips).forEach(empId => {
+                                    if (empTotals[empId]) empTotals[empId].tips += parseFloat(calcObj.tips[empId]) || 0;
+                                });
+                            }
+                            if (dayObj && dayObj.driverTips) {
+                                Object.keys(dayObj.driverTips).forEach(empId => {
+                                    if (empTotals[empId]) empTotals[empId].tips += parseFloat(dayObj.driverTips[empId]) || 0;
+                                });
+                            }
+                        }
+                    }
                 };
-                
-                activeExtensionIframe.value.contentWindow.postMessage(payload, '*');
-                logAction("API Sync", `Pushed live data payload to Virtual Tool: ${activeExtension.value.name}`);
+
+                Object.keys(yearlyArchives.value).forEach(yKey => {
+                    const yNum = parseInt(yKey, 10);
+                    Object.keys(yearlyArchives.value[yKey]).forEach(mKey => {
+                        const mNum = parseInt(mKey, 10);
+                        processMonthData(yNum, mNum, yearlyArchives.value[yKey][mKey]);
+                    });
+                });
+
+                if (currentPayPeriod.value) {
+                    const [currYr, currM] = currentPayPeriod.value.split('-');
+                    if (!yearlyArchives.value[currYr]?.[parseInt(currM, 10)]) {
+                        processMonthData(parseInt(currYr, 10), parseInt(currM, 10), {
+                            dailyData: dailyData.value,
+                            calculatedTips: calculatedTips.value
+                        });
+                    }
+                }
+
+                let grandHours = 0;
+                let grandTips = 0;
+                sortedEmployees.value.forEach(emp => {
+                    const t = empTotals[emp.id];
+                    if (t && (t.hours > 0 || t.tips > 0)) {
+                        wsData.push([emp.lastName, formatFirstName(emp), t.hours, t.tips]);
+                        grandHours += t.hours;
+                        grandTips += t.tips;
+                    }
+                });
+
+                wsData.push([]);
+                wsData.push(['GRAND TOTALS', '', grandHours, grandTips]);
+
+                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), 'Payroll Report');
+                downloadExcelFile(wb, `Sundial_${activeSite.value.replace(/\s+/g, '_')}_DateRange_Report.xlsx`);
+                showPayrollModal.value = false;
+            } catch (err) {
+                console.error(err);
+                showAlert("Error generating custom report.");
             }
         };
 
@@ -1743,7 +1997,13 @@ const app = createApp({
             saveState();
         };
 
-        watch([dailyData, numDays, currentPayPeriod], () => pushHistory(), { deep: true });
+        let historyDebounceTimer = null;
+        watch([dailyData, numDays, currentPayPeriod], () => {
+            if (historyDebounceTimer) clearTimeout(historyDebounceTimer);
+            historyDebounceTimer = setTimeout(() => {
+                pushHistory();
+            }, 400);
+        }, { deep: true });
 
         const undo = () => {
             if (historyIndex.value > 0) {
@@ -1818,53 +2078,7 @@ const app = createApp({
                     if (data.extensions) extensions.value = data.extensions;
                     if (data.employees) employees.value = sanitizeEmployees(data.employees);
                 } else {
-                    const defaultInitialEmployees = [
-                        // Redding Rancheria Sundial LLC Roster
-                        { id: 'emp_0338', tempId: '0338', firstName: 'Nicholas', lastName: 'Benjamin', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_1759', tempId: '1759', firstName: 'Mackenna', lastName: 'Bradley', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_2197', tempId: '2197', firstName: 'Bryan', lastName: 'Brewer', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_8269', tempId: '8269', firstName: 'Mark', lastName: 'Brown', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_1356', tempId: '1356', firstName: 'Flora', lastName: 'Davis', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_5290', tempId: '5290', firstName: 'Michael', lastName: 'Fisk', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_8551', tempId: '8551', firstName: 'Madison', lastName: 'Gama', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_1857', tempId: '1857', firstName: 'Jenae', lastName: 'Hall', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_4998', tempId: '4998', firstName: 'Josiah', lastName: 'Hawkins', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_9419', tempId: '9419', firstName: 'Derrick', lastName: 'Hernandez-Wier', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_3605', tempId: '3605', firstName: 'Victoria', lastName: 'Holmes', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_1351', tempId: '1351', firstName: 'Curtis', lastName: 'Howerton', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_3958', tempId: '3958', firstName: 'Daniel', lastName: 'Iwasaki', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_5495', tempId: '5495', firstName: 'Susan', lastName: 'James', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_0399', tempId: '0399', firstName: 'Cortney', lastName: 'Peery', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_0451', tempId: '0451', firstName: 'Chelsey', lastName: 'Pierce', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_1442', tempId: '1442', firstName: 'Ayden', lastName: 'Reyes', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_7175', tempId: '7175', firstName: 'Angelique', lastName: 'Sharit', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_2224', tempId: '2224', firstName: 'Kevin', lastName: 'Snyder', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_6039', tempId: '6039', firstName: 'Christopher', lastName: 'Telfer', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_0920', tempId: '0920', firstName: 'Sean', lastName: 'Tolle', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_1718', tempId: '1718', firstName: 'Michael', lastName: 'Whipple', isDriver: false, isManager: false, sites: ['Redding'] },
-                        { id: 'emp_6467', tempId: '6467', firstName: 'William', lastName: 'Williams', isDriver: false, isManager: false, sites: ['Redding'] },
-
-                        // Redding Rancheria Sundial Red Bluff LLC Roster
-                        { id: 'emp_4668', tempId: '4668', firstName: 'Franklin', lastName: 'Arellano', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_8746', tempId: '8746', firstName: 'Marni', lastName: 'Barr', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_0305', tempId: '0305', firstName: 'Anthony', lastName: 'Burritt-Smith', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_7497', tempId: '7497', firstName: 'Jacob', lastName: 'Cooper', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_3657', tempId: '3657', firstName: 'Holly', lastName: 'Dalton', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_8201', tempId: '8201', firstName: 'Shaun', lastName: 'Davis', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_7529', tempId: '7529', firstName: 'Dylan', lastName: 'Dickerson', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_8367', tempId: '8367', firstName: 'Marcus', lastName: 'Emigh', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_8786', tempId: '8786', firstName: 'Janelle', lastName: 'Freeman', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_3031', tempId: '3031', firstName: 'Martin', lastName: 'Gonzales', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_9902', tempId: '9902', firstName: 'Kyndra', lastName: 'Harris', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_6369', tempId: '6369', firstName: 'Katelyn', lastName: 'Harris', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_6607', tempId: '6607', firstName: 'Jalynn', lastName: 'McCray', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_3813', tempId: '3813', firstName: 'Olissa', lastName: 'Oliver', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_1522', tempId: '1522', firstName: 'Andrew', lastName: 'Speck', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_7470', tempId: '7470', firstName: 'Jordyn', lastName: 'Stamper', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_7312', tempId: '7312', firstName: 'Daniel', lastName: 'Tugaeff-Perreira', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_3373', tempId: '3373', firstName: 'Ethan', lastName: 'Van Lent', isDriver: false, isManager: false, sites: ['Red Bluff'] },
-                        { id: 'emp_9055', tempId: '9055', firstName: 'Nicole', lastName: 'Warnecke', isDriver: false, isManager: false, sites: ['Red Bluff'] }
-                    ];
+                    employees.value = defaultInitialEmployees;
 
                     setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), {
                         systemUsers: defaultSystemUsers,
@@ -1894,27 +2108,31 @@ const app = createApp({
         watch(activeTab, () => nextTick(() => lucide.createIcons()));
 
         return {
-            activeSite, switchSite, numDays, employees, sortedEmployees, driverEmployees, dailyData, activeTab,
-            showEmployeeModal, showPermissionsModal, newEmp, newUserAuth, editingPin, historyIndex, monthlyStats,
-            toggleEmployeeSite,
-            addEmployee, removeEmployee, clearData, exportToExcel, undo, generateMockData, quickLogin,
+            isDbConnected, activeSite, switchSite, numDays, employees, sortedAllEmployees, sortedEmployees, driverEmployees, dailyData, activeTab, masterDisplayMode,
+            showEmployeeModal, showPermissionsModal, showExtensionModal, showPayrollModal, showTimeoutModal,
+            newEmp, newUserAuth, editingPin, historyIndex, calculatedTips, monthlyStats,
+            masterTotalTips, masterTotalDistributed, masterTotalVariance,
+            getDailyActiveEmployees, getDailyActiveDrivers, toggleEmployeeSite,
+            addEmployee, removeEmployee, clearData, nukeAllData, exportToExcel, undo, pushHistory, generateMockData, quickLogin,
+            formatCurrency, formatCurrencyBlanks, getHourInputClass, getDriverTipInputClass,
             modal, closeModal, confirmModal, formatFirstName, isFullTimeId,
             loggedInUser, isManagerUnlocked, currentUserAccess, isDevUser, hasPermissionAccess, hasRoleAccess, pinInput, handleLogin, forceLock,
             systemUsers, saveSystemUser, editSystemUser, cancelEdit, removeSystemUser, resetPersonalPin, ROLE_TIERS, currentUserRoleLevel, availableRolesToAssign, getRoleBadgeClass,
             setup2FA, pending2FAUserPin, save2FASetup,
-            extensions, showExtensionModal, activeExtension, activeExtensionIframe, newExtension, isDraggingFile, handleFileDrop, launchExtension, closeExtension, addExtension, removeExtension, syncDataToExtension,
+            extensions, activeExtension, activeExtensionIframe, newExtension, isDraggingFile, handleFileDrop, launchExtension, closeExtension, addExtension, removeExtension, syncDataToExtension,
             editingExtension, editExtension, updateExtension, cancelEditExtension,
             showImportModal, isDraggingExcel, isDraggingOCR, isProcessingOCR, ocrStatus, ocrProgress, pastedRawText, handleGlobalPaste, processPastedText, handleExcelDrop, importExcel, handleOCRDrop, importOCR,
-            showPayrollModal, payrollStartDate, payrollEndDate, generateCustomDateReport,
+            payrollStartDate, payrollEndDate, generateCustomDateReport,
             auditLogs, logAction, clearAuditLog, exportAuditLog,
-            timeRemaining, formattedTimeRemaining, showTimeoutModal, extendSession,
+            timeRemaining, formattedTimeRemaining, extendSession,
             startDrag, onDrag, stopDrag,
             currentPayPeriod, formattedPayPeriod, handlePeriodChange,
+            saveState, saveGlobalSettings,
             yearlyArchives, selectedArchiveYear, multiYearDisplayMode, availableArchiveYears, getMonthName, addNewYearTab, getYearlySummary, getEmployeeYTDTotal, archiveCurrentMonth, exportHistoricalLedger,
-            selectedArchivedMonthDetail, archivedMonthDisplayMode, closeArchivedMonthDetail,
+            selectedArchivedMonthDetail, archivedMonthDisplayMode, viewArchivedMonthDetail, closeArchivedMonthDetail,
             scrollToMonth, isCurrentPayPeriodMonth, getMonthDisplayData,
             activeYearDisplayData, activeYearSummary, activeYearEmployeeYTD,
-            refreshIcons, isDbConnected
+            refreshIcons
         };
     }
 });
