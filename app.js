@@ -242,7 +242,12 @@ const app = createApp({
 
         const pinInput = ref('');
         const setup2FA = ref({ isOpen: false, pin1: '', pin2: '' });
+        const verify2FA = ref({ isOpen: false, personalPinInput: '' });
         const pending2FAUserPin = ref('');
+        const pending2FAUserName = computed(() => {
+            if (!pending2FAUserPin.value || !systemUsers.value[pending2FAUserPin.value]) return '';
+            return systemUsers.value[pending2FAUserPin.value].name;
+        });
         
         const defaultSystemUsers = {
             '4095': { name: 'Lenay A.', access: ['Red Bluff', 'Redding'], role: 'MANAGER', personalPin: null },
@@ -697,10 +702,48 @@ const app = createApp({
             }
         };
 
+        const PIN_RESET_VERSION = 'v3_two_layer_2fa_reset';
+
         const resetPersonalPin = (pin) => {
-            showConfirm(`Are you sure you want to reset the 2FA personal PIN for ${systemUsers.value[pin].name}? They will be prompted to create a new one on their next login.`, () => {
+            const targetUser = systemUsers.value[pin];
+            if (!targetUser) return;
+            if (ROLE_TIERS[targetUser.role] > currentUserRoleLevel.value) {
+                return showAlert("Unauthorized. You cannot reset a user with higher clearance.");
+            }
+            showConfirm(`Are you sure you want to reset the 2FA personal PIN for ${targetUser.name}? Their next sign-in will be treated as a first-time login.`, () => {
                 systemUsers.value[pin].personalPin = null;
-                logAction("2FA Reset", `Admin reset the personal PIN for user ${systemUsers.value[pin].name}.`);
+                logAction("2FA Reset", `Admin reset the personal PIN for user ${targetUser.name}. User forced to re-initialize 2FA as a first-time user.`);
+                saveGlobalSettings();
+                if (currentUserData.value?.pin === pin) {
+                    forceLock("Session locked. Your 2FA PIN was reset; please sign in again as a first-time user.");
+                }
+            });
+        };
+
+        const resetAllUserPins = () => {
+            if (!hasRoleAccess.value && !isDevUser.value) {
+                return showAlert("Unauthorized. Only Admin or Dev users can reset all user PINs.");
+            }
+            showConfirm("Are you sure you want to reset ALL users' 2FA PINs? Every user (including you) will be treated as a first-time sign-in on their next login. No employee roster or tip data will be affected.", async () => {
+                const updatedUsers = {};
+                Object.keys(defaultSystemUsers).forEach(pin => {
+                    updatedUsers[pin] = { ...defaultSystemUsers[pin], personalPin: null };
+                });
+                Object.keys(systemUsers.value).forEach(pin => {
+                    updatedUsers[pin] = {
+                        ...systemUsers.value[pin],
+                        personalPin: null
+                    };
+                });
+                Object.keys(defaultSystemUsers).forEach(pin => {
+                    updatedUsers[pin].role = defaultSystemUsers[pin].role;
+                    updatedUsers[pin].access = defaultSystemUsers[pin].access;
+                    updatedUsers[pin].personalPin = null;
+                });
+                systemUsers.value = updatedUsers;
+                logAction("Global 2FA Reset", "All user PINs were reset to first-time sign-in status.");
+                await saveGlobalSettings();
+                showAlert("All user PINs have been reset to first-time sign-in status.");
             });
         };
 
@@ -941,6 +984,9 @@ const app = createApp({
             showExtensionModal.value = false;
             showImportModal.value = false;
             setup2FA.value.isOpen = false;
+            verify2FA.value.isOpen = false;
+            verify2FA.value.personalPinInput = '';
+            pending2FAUserPin.value = '';
             activeExtension.value = null;
             selectedArchivedMonthDetail.value = null;
             if (loggedInUser.value) {
@@ -1477,29 +1523,73 @@ const app = createApp({
                 const persPin = parsedPin.substring(4, 8);
                 const matchedUser = systemUsers.value[basePin];
                 
-                if (matchedUser && matchedUser.personalPin === persPin) {
-                    finalizeLogin(matchedUser, basePin);
+                if (matchedUser) {
+                    if (!matchedUser.personalPin) {
+                        pending2FAUserPin.value = basePin;
+                        setup2FA.value.isOpen = true;
+                        setup2FA.value.pin1 = '';
+                        setup2FA.value.pin2 = '';
+                    } else if (matchedUser.personalPin === persPin) {
+                        finalizeLogin(matchedUser, basePin);
+                    } else {
+                        showAlert("Incorrect Personal PIN. Access Denied.");
+                    }
                 } else {
-                    showAlert("Incorrect 8-digit PIN combination. Access Denied.");
+                    showAlert("Unrecognized Admin PIN. Access Denied.");
                 }
             } 
             else if (parsedPin.length === 4) {
                 const matchedUser = systemUsers.value[parsedPin];
                 if (matchedUser) {
+                    pending2FAUserPin.value = parsedPin;
                     if (matchedUser.personalPin) {
-                        showAlert("2FA is enabled for this account. Please enter your full 8-digit PIN (Admin Assigned + Personal).");
+                        verify2FA.value.isOpen = true;
+                        verify2FA.value.personalPinInput = '';
                     } else {
-                        pending2FAUserPin.value = parsedPin;
                         setup2FA.value.isOpen = true;
                         setup2FA.value.pin1 = '';
                         setup2FA.value.pin2 = '';
                     }
                 } else {
-                    showAlert("Incorrect PIN. Access Denied.");
+                    showAlert("Incorrect Admin PIN. Access Denied.");
                 }
             } else {
-                showAlert("Please enter a valid 4-digit or 8-digit PIN.");
+                showAlert("Please enter your 4-digit Admin PIN to identify your account.");
             }
+            pinInput.value = '';
+            nextTick(() => lucide.createIcons());
+        };
+
+        const verifyPersonalPinLogin = () => {
+            const basePin = pending2FAUserPin.value;
+            const persPin = verify2FA.value.personalPinInput.trim();
+            const matchedUser = systemUsers.value[basePin];
+
+            if (!matchedUser) {
+                cancel2FALayer();
+                return showAlert("Session expired or user not found. Please enter your Admin PIN again.");
+            }
+            if (persPin.length !== 4 || isNaN(persPin)) {
+                return showAlert("Please enter your 4-digit Personal PIN.");
+            }
+            if (matchedUser.personalPin === persPin) {
+                verify2FA.value.isOpen = false;
+                verify2FA.value.personalPinInput = '';
+                pending2FAUserPin.value = '';
+                finalizeLogin(matchedUser, basePin);
+            } else {
+                verify2FA.value.personalPinInput = '';
+                showAlert("Incorrect Personal PIN for " + matchedUser.name + ". Access Denied.");
+            }
+        };
+
+        const cancel2FALayer = () => {
+            setup2FA.value.isOpen = false;
+            setup2FA.value.pin1 = '';
+            setup2FA.value.pin2 = '';
+            verify2FA.value.isOpen = false;
+            verify2FA.value.personalPinInput = '';
+            pending2FAUserPin.value = '';
             pinInput.value = '';
             nextTick(() => lucide.createIcons());
         };
@@ -1516,6 +1606,8 @@ const app = createApp({
             systemUsers.value[basePin].personalPin = setup2FA.value.pin1;
             
             setup2FA.value.isOpen = false;
+            pending2FAUserPin.value = '';
+            saveGlobalSettings();
             logAction("2FA Setup", `User configured their 4-digit personal PIN for the first time.`);
             finalizeLogin(systemUsers.value[basePin], basePin);
         };
@@ -1540,6 +1632,7 @@ const app = createApp({
             try {
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), {
                     systemUsers: systemUsers.value,
+                    pinResetVersion: PIN_RESET_VERSION,
                     extensions: extensions.value,
                     employees: employees.value
                 }, { merge: true });
@@ -2074,14 +2167,41 @@ const app = createApp({
             onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if (data.systemUsers) systemUsers.value = data.systemUsers;
                     if (data.extensions) extensions.value = data.extensions;
                     if (data.employees) employees.value = sanitizeEmployees(data.employees);
+
+                    if (data.pinResetVersion !== PIN_RESET_VERSION) {
+                        const resetUsers = { ...defaultSystemUsers };
+                        if (data.systemUsers && typeof data.systemUsers === 'object') {
+                            Object.keys(data.systemUsers).forEach(pin => {
+                                resetUsers[pin] = {
+                                    ...data.systemUsers[pin],
+                                    personalPin: null
+                                };
+                            });
+                        }
+                        Object.keys(defaultSystemUsers).forEach(pin => {
+                            resetUsers[pin] = {
+                                ...(resetUsers[pin] || defaultSystemUsers[pin]),
+                                role: defaultSystemUsers[pin].role,
+                                access: defaultSystemUsers[pin].access,
+                                personalPin: null
+                            };
+                        });
+                        systemUsers.value = resetUsers;
+                        setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), {
+                            systemUsers: resetUsers,
+                            pinResetVersion: PIN_RESET_VERSION
+                        }, { merge: true });
+                    } else if (data.systemUsers) {
+                        systemUsers.value = data.systemUsers;
+                    }
                 } else {
                     employees.value = defaultInitialEmployees;
 
                     setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sundial_globals', 'settings'), {
                         systemUsers: defaultSystemUsers,
+                        pinResetVersion: PIN_RESET_VERSION,
                         extensions: [],
                         employees: defaultInitialEmployees
                     });
@@ -2117,8 +2237,8 @@ const app = createApp({
             formatCurrency, formatCurrencyBlanks, getHourInputClass, getDriverTipInputClass,
             modal, closeModal, confirmModal, formatFirstName, isFullTimeId,
             loggedInUser, isManagerUnlocked, currentUserAccess, isDevUser, hasPermissionAccess, hasRoleAccess, pinInput, handleLogin, forceLock,
-            systemUsers, saveSystemUser, editSystemUser, cancelEdit, removeSystemUser, resetPersonalPin, ROLE_TIERS, currentUserRoleLevel, availableRolesToAssign, getRoleBadgeClass,
-            setup2FA, pending2FAUserPin, save2FASetup,
+            systemUsers, saveSystemUser, editSystemUser, cancelEdit, removeSystemUser, resetPersonalPin, resetAllUserPins, ROLE_TIERS, currentUserRoleLevel, availableRolesToAssign, getRoleBadgeClass,
+            setup2FA, verify2FA, pending2FAUserPin, pending2FAUserName, save2FASetup, verifyPersonalPinLogin, cancel2FALayer,
             extensions, activeExtension, activeExtensionIframe, newExtension, isDraggingFile, handleFileDrop, launchExtension, closeExtension, addExtension, removeExtension, syncDataToExtension,
             editingExtension, editExtension, updateExtension, cancelEditExtension,
             showImportModal, isDraggingExcel, isDraggingOCR, isProcessingOCR, ocrStatus, ocrProgress, pastedRawText, handleGlobalPaste, processPastedText, handleExcelDrop, importExcel, handleOCRDrop, importOCR,
