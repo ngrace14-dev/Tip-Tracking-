@@ -188,9 +188,11 @@ const app = createApp({
             } 
             else {
                 showConfirm(`You changed the active date to ${formattedPayPeriod.value}.\n\nWould you like to clear the workspace (reset all hours and tips) to start a fresh month?\n\n(Click Cancel if you are just fixing a typo in the date, or if you still need to hit the 'Archive Month' button!)`, () => {
-                    dailyData.value = createEmptyDailyData(numDays.value);
-                    logAction("Started New Month", `Cleared workspace to begin ${formattedPayPeriod.value}.`);
-                    saveState();
+                    requireDevPin(`Clear Workspace for ${formattedPayPeriod.value}`, () => {
+                        dailyData.value = createEmptyDailyData(numDays.value);
+                        logAction("Started New Month", `DEV PIN authorized clearing workspace to begin ${formattedPayPeriod.value}.`);
+                        saveState();
+                    });
                 });
             }
             
@@ -269,6 +271,7 @@ const app = createApp({
 
         const auditLogs = ref([]);
         const modal = ref({ isOpen: false, type: 'alert', message: '', onConfirm: null });
+        const devPinModal = ref({ isOpen: false, actionLabel: '', pinInput: '', errorMsg: '', onAuthorized: null });
 
         const history = ref([]);
         const historyIndex = ref(-1);
@@ -678,11 +681,64 @@ const app = createApp({
             saveState();
         };
 
+        const requireDevPin = (actionLabel, callback) => {
+            devPinModal.value = {
+                isOpen: true,
+                actionLabel: actionLabel,
+                pinInput: '',
+                errorMsg: '',
+                onAuthorized: callback
+            };
+            refreshIcons();
+        };
+
+        const closeDevPinModal = () => {
+            devPinModal.value.isOpen = false;
+            devPinModal.value.pinInput = '';
+            devPinModal.value.errorMsg = '';
+            devPinModal.value.onAuthorized = null;
+        };
+
+        const confirmDevPinModal = () => {
+            const entered = devPinModal.value.pinInput.trim();
+            if (!entered) {
+                devPinModal.value.errorMsg = "Please enter the DEV PIN code.";
+                return;
+            }
+
+            let isAuthorizedDev = false;
+            Object.entries(systemUsers.value).forEach(([basePin, user]) => {
+                if (user && user.role === 'DEV') {
+                    if (user.personalPin) {
+                        if (entered === basePin || entered === user.personalPin || entered === (basePin + user.personalPin)) {
+                            isAuthorizedDev = true;
+                        }
+                    } else if (entered === basePin) {
+                        isAuthorizedDev = true;
+                    }
+                }
+            });
+
+            if (!isAuthorizedDev) {
+                devPinModal.value.errorMsg = "Invalid DEV PIN. Data clearing requires DEV authorization.";
+                devPinModal.value.pinInput = '';
+                return;
+            }
+
+            const callback = devPinModal.value.onAuthorized;
+            closeDevPinModal();
+            if (callback) {
+                setTimeout(() => { callback(); }, 50);
+            }
+        };
+
         const clearAuditLog = () => {
             showConfirm("Are you sure you want to delete the entire audit log? This cannot be undone.", () => {
-                auditLogs.value = [];
-                logAction("Cleared Audit Log", "User manually wiped the audit history.");
-                saveState();
+                requireDevPin("Clear Entire Audit Log", () => {
+                    auditLogs.value = [];
+                    logAction("Cleared Audit Log", "DEV PIN authorized wiping the audit history.");
+                    saveState();
+                });
             });
         };
 
@@ -1696,20 +1752,24 @@ const app = createApp({
 
         const clearData = () => {
             showConfirm(`Are you sure you want to wipe all hours and tip pools for the current active pay period (${formattedPayPeriod.value})?`, () => {
-                dailyData.value = createEmptyDailyData(31);
-                logAction("Cleared Month Data", `Wiped all active hours and tip pools for ${formattedPayPeriod.value}.`);
-                saveState();
+                requireDevPin(`Reset Pay Period Data (${formattedPayPeriod.value})`, () => {
+                    dailyData.value = createEmptyDailyData(31);
+                    logAction("Cleared Month Data", `DEV PIN authorized wiping all active hours and tip pools for ${formattedPayPeriod.value}.`);
+                    saveState();
+                });
             });
         };
 
         const nukeAllData = () => {
             showConfirm(`CRITICAL WARNING: This will permanently erase ALL current daily data AND ALL historical multi-year archives for ${activeSite.value}. Are you absolutely sure?`, () => {
-                dailyData.value = createEmptyDailyData(31);
-                yearlyArchives.value = {};
-                auditLogs.value = [];
-                logAction("System Nuke", `Dev completely wiped all live and archived data for ${activeSite.value}.`);
-                saveState();
-                showAlert("All site data and archives have been reset.");
+                requireDevPin(`Nuke All Active & Historical Data (${activeSite.value})`, () => {
+                    dailyData.value = createEmptyDailyData(31);
+                    yearlyArchives.value = {};
+                    auditLogs.value = [];
+                    logAction("System Nuke", `DEV PIN authorized completely wiping all live and archived data for ${activeSite.value}.`);
+                    saveState();
+                    showAlert("All site data and archives have been reset.");
+                });
             });
         };
 
@@ -2235,7 +2295,7 @@ const app = createApp({
             getDailyActiveEmployees, getDailyActiveDrivers, toggleEmployeeSite,
             addEmployee, removeEmployee, clearData, nukeAllData, exportToExcel, undo, pushHistory, generateMockData, quickLogin,
             formatCurrency, formatCurrencyBlanks, getHourInputClass, getDriverTipInputClass,
-            modal, closeModal, confirmModal, formatFirstName, isFullTimeId,
+            modal, closeModal, confirmModal, devPinModal, requireDevPin, closeDevPinModal, confirmDevPinModal, formatFirstName, isFullTimeId,
             loggedInUser, isManagerUnlocked, currentUserAccess, isDevUser, hasPermissionAccess, hasRoleAccess, pinInput, handleLogin, forceLock,
             systemUsers, saveSystemUser, editSystemUser, cancelEdit, removeSystemUser, resetPersonalPin, resetAllUserPins, ROLE_TIERS, currentUserRoleLevel, availableRolesToAssign, getRoleBadgeClass,
             setup2FA, verify2FA, pending2FAUserPin, pending2FAUserName, save2FASetup, verifyPersonalPinLogin, cancel2FALayer,
